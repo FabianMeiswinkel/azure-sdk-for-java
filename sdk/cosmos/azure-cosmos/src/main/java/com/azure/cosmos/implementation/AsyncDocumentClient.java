@@ -4,8 +4,10 @@ package com.azure.cosmos.implementation;
 
 import com.azure.core.credential.AzureKeyCredential;
 import com.azure.cosmos.ConsistencyLevel;
+import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
+import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.models.FeedResponse;
 import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.SqlQuerySpec;
@@ -637,6 +639,14 @@ public interface AsyncDocumentClient {
      * @return a {@link Flux} containing one or several feed response pages of the obtained partition key ranges or an error.
      */
     Flux<FeedResponse<PartitionKeyRange>> readPartitionKeyRanges(String collectionLink, CosmosQueryRequestOptions options);
+
+    /**
+     * Gets the feed ranges of a container.
+     *
+     * @param collectionLink the link to the parent document collection.
+     * @return a {@link UnmodifiableList} of @{link FeedRange} containing the feed ranges of a container.
+     */
+    Mono<UnmodifiableList<FeedRange>> getFeedRanges(String collectionLink);
 
     /**
      * Creates a stored procedure.

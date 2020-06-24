@@ -3,16 +3,8 @@
 
 package com.azure.cosmos;
 
-import com.azure.cosmos.models.CosmosItemResponse;
-import com.azure.cosmos.models.CosmosContainerProperties;
-import com.azure.cosmos.models.CosmosContainerRequestOptions;
-import com.azure.cosmos.models.CosmosContainerResponse;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosQueryRequestOptions;
-import com.azure.cosmos.models.PartitionKey;
-import com.azure.cosmos.models.SqlQuerySpec;
-import com.azure.cosmos.models.ThroughputProperties;
-import com.azure.cosmos.models.ThroughputResponse;
+import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
+import com.azure.cosmos.models.*;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.CosmosPagedIterable;
 import com.azure.cosmos.util.UtilBridgeInternal;
@@ -343,8 +335,24 @@ public class CosmosContainer {
         return this.scripts;
     }
 
-    // TODO: should make partitionkey public in CosmosAsyncItem and fix the below call
+    /**
+     * Obtains a list of {@link FeedRange} that can be used to parallelize Feed operations.
+     * @return An unmodifiable list of {@link FeedRange}
+     */
+    public UnmodifiableList<FeedRange> getFeedRanges() {
+        try {
+            return asyncContainer.getFeedRanges().block();
+        } catch (Exception ex) {
+            final Throwable throwable = Exceptions.unwrap(ex);
+            if (throwable instanceof CosmosException) {
+                throw (CosmosException) throwable;
+            } else {
+                throw ex;
+            }
+        }
+    }
 
+    // TODO: should make partitionkey public in CosmosAsyncItem and fix the below call
     private <T> CosmosPagedIterable<T> getCosmosPagedIterable(CosmosPagedFlux<T> cosmosPagedFlux) {
         return UtilBridgeInternal.createCosmosPagedIterable(cosmosPagedFlux);
     }

@@ -12,20 +12,9 @@ import com.azure.cosmos.implementation.Paths;
 import com.azure.cosmos.implementation.RequestOptions;
 import com.azure.cosmos.implementation.TracerProvider;
 import com.azure.cosmos.implementation.Utils;
+import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.query.QueryInfo;
-import com.azure.cosmos.models.CosmosConflictProperties;
-import com.azure.cosmos.models.CosmosContainerProperties;
-import com.azure.cosmos.models.CosmosContainerRequestOptions;
-import com.azure.cosmos.models.CosmosContainerResponse;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosItemResponse;
-import com.azure.cosmos.models.CosmosQueryRequestOptions;
-import com.azure.cosmos.models.FeedResponse;
-import com.azure.cosmos.models.ModelBridgeInternal;
-import com.azure.cosmos.models.PartitionKey;
-import com.azure.cosmos.models.SqlQuerySpec;
-import com.azure.cosmos.models.ThroughputProperties;
-import com.azure.cosmos.models.ThroughputResponse;
+import com.azure.cosmos.models.*;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.UtilBridgeInternal;
 import reactor.core.publisher.Flux;
@@ -50,6 +39,7 @@ public class CosmosAsyncContainer {
     private final String deleteContainerSpanName;
     private final String replaceThroughputSpanName;
     private final String readThroughputSpanName;
+    private final String getFeedRangesSpanName;
     private final String readContainerSpanName;
     private final String readItemSpanName;
     private final String upsertItemSpanName;
@@ -80,6 +70,7 @@ public class CosmosAsyncContainer {
         this.queryItemsSpanName = "queryItems." + this.id;
         this.readAllConflictsSpanName = "readAllConflicts." + this.id;
         this.queryConflictsSpanName = "queryConflicts." + this.id;
+        this.getFeedRangesSpanName = "getFeedRanges." + this.id;
     }
 
     /**
@@ -725,6 +716,36 @@ public class CosmosAsyncContainer {
         }
 
         return withContext(context -> readThroughputInternal(context));
+    }
+
+    /**
+     * Obtains a list of {@link FeedRange} that can be used to parallelize Feed operations.
+     * @return An unmodifiable list of {@link FeedRange}
+     */
+    public Mono<UnmodifiableList<FeedRange>> getFeedRanges() {
+        if (!this.database.getClient().getTracerProvider().isEnabled()) {
+            return this.getFeedRangesInternal();
+        }
+
+        return withContext(context -> this.getFeedRangesInternal(context));
+    }
+
+    private Mono<UnmodifiableList<FeedRange>> getFeedRangesInternal(Context context) {
+        Context nestedContext = context.addData(TracerProvider.COSMOS_CALL_DEPTH, TracerProvider.COSMOS_CALL_DEPTH_VAL);
+        Mono<UnmodifiableList<FeedRange>> responseMono = this.getFeedRangesInternal();
+        return this.getDatabase().getClient().getTracerProvider().traceEnabledPublisher(
+            responseMono,
+            context,
+            this.getFeedRangesSpanName,
+            database.getId(),
+            database.getClient().getServiceEndpoint(),
+            (result) -> 200);
+    }
+
+    private Mono<UnmodifiableList<FeedRange>> getFeedRangesInternal() {
+        return this.getDatabase().getDocClientWrapper()
+            .getFeedRanges(getLink())
+            .single();
     }
 
     /**
