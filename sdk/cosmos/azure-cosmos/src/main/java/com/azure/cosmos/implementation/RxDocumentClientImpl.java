@@ -1010,16 +1010,17 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
             // have empty value for it and user doesn't need to specify it explicitly.
             partitionKeyInternal = PartitionKeyInternal.getEmpty();
         } else if (contentAsByteBuffer != null) {
-            CosmosItemProperties cosmosItemProperties;
-            if (objectDoc instanceof CosmosItemProperties) {
-                cosmosItemProperties = (CosmosItemProperties) objectDoc;
+            InternalObjectNode internalObjectNode;
+            if (objectDoc instanceof InternalObjectNode) {
+                internalObjectNode = (InternalObjectNode) objectDoc;
             } else {
                 contentAsByteBuffer.rewind();
-                cosmosItemProperties = new CosmosItemProperties(contentAsByteBuffer);
+                internalObjectNode = new InternalObjectNode(contentAsByteBuffer);
             }
 
             Instant serializationStartTime = Instant.now();
-            partitionKeyInternal = extractPartitionKeyValueFromDocument(cosmosItemProperties, partitionKeyDefinition);
+            partitionKeyInternal =  extractPartitionKeyValueFromDocument(internalObjectNode, partitionKeyDefinition);
+
             Instant serializationEndTime = Instant.now();
             SerializationDiagnosticsContext.SerializationDiagnostics serializationDiagnostics = new SerializationDiagnosticsContext.SerializationDiagnostics(
                     serializationStartTime, serializationEndTime,
@@ -1039,7 +1040,8 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
                 Utils.escapeNonAscii(partitionKeyInternal.toJson()));
     }
 
-    private static PartitionKeyInternal extractPartitionKeyValueFromDocument(CosmosItemProperties document,
+    private static PartitionKeyInternal extractPartitionKeyValueFromDocument(
+            InternalObjectNode document,
             PartitionKeyDefinition partitionKeyDefinition) {
         if (partitionKeyDefinition != null) {
             String path = partitionKeyDefinition.getPaths().iterator().next();
