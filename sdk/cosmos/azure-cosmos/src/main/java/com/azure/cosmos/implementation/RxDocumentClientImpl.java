@@ -3172,9 +3172,9 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     @Override
     public Mono<UnmodifiableList<FeedRange>> getFeedRanges(String collectionLink) {
         RxDocumentServiceRequest request = RxDocumentServiceRequest.create(OperationType.Query, ResourceType.Document,
-            collectionLink, null); // This should not got to backend
+                collectionLink, null); // This should not got to backend
         Mono<Utils.ValueHolder<DocumentCollection>> collectionObs = collectionCache.resolveCollectionAsync(null,
-            request);
+                request);
 
         return collectionObs.flatMap(documentCollectionResourceResponse -> {
             final DocumentCollection collection = documentCollectionResourceResponse.v;
@@ -3183,9 +3183,9 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
             }
 
             Mono<Utils.ValueHolder<List<PartitionKeyRange>>> valueHolderMono = partitionKeyRangeCache
-                .tryGetOverlappingRangesAsync(
-                    BridgeInternal.getMetaDataDiagnosticContext(request.requestContext.cosmosDiagnostics),
-                    collection.getResourceId(), rangeIncludingAllPartitionKeyRanges, true, null);
+                    .tryGetOverlappingRangesAsync(
+                            BridgeInternal.getMetaDataDiagnosticContext(request.requestContext.cosmosDiagnostics),
+                            collection.getResourceId(), rangeIncludingAllPartitionKeyRanges, true, null);
 
             return valueHolderMono.map(partitionKeyRangeListResponse -> {
                 return toFeedRanges(partitionKeyRangeListResponse);
@@ -3194,7 +3194,7 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     }
 
     private static UnmodifiableList<FeedRange> toFeedRanges(
-        Utils.ValueHolder<List<PartitionKeyRange>> partitionKeyRangeListValueHolder) {
+            Utils.ValueHolder<List<PartitionKeyRange>> partitionKeyRangeListValueHolder) {
         final List<PartitionKeyRange> partitionKeyRangeList = partitionKeyRangeListValueHolder.v;
         if (partitionKeyRangeList == null) {
             throw new IllegalStateException("PartitionKeyRange list cannot be null");
@@ -3206,7 +3206,7 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
         });
 
         UnmodifiableList<FeedRange> feedRangesResult = (UnmodifiableList<FeedRange>) Collections
-            .unmodifiableList(feedRanges);
+                .unmodifiableList(feedRanges);
 
         return feedRangesResult;
     }

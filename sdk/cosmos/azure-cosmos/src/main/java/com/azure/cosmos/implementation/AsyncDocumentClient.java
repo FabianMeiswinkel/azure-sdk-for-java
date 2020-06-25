@@ -644,7 +644,8 @@ public interface AsyncDocumentClient {
      * Gets the feed ranges of a container.
      *
      * @param collectionLink the link to the parent document collection.
-     * @return a {@link UnmodifiableList} of @{link FeedRange} containing the feed ranges of a container.
+     * @return a {@link UnmodifiableList} of @{link FeedRange} containing the feed
+     *         ranges of a container.
      */
     Mono<UnmodifiableList<FeedRange>> getFeedRanges(String collectionLink);
 

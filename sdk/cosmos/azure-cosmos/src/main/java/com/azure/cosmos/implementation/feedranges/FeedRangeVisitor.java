@@ -6,8 +6,7 @@ public final class FeedRangeVisitor {
 
     }
 
-    public void visit(FeedRangeEPKImpl feedRange)
-    {
+    public void visit(FeedRangeEPKImpl feedRange) {
         // No-op since the range is defined by the composite continuation token
     }
 }

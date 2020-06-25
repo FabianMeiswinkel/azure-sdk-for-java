@@ -336,7 +336,9 @@ public class CosmosContainer {
     }
 
     /**
-     * Obtains a list of {@link FeedRange} that can be used to parallelize Feed operations.
+     * Obtains a list of {@link FeedRange} that can be used to parallelize Feed
+     * operations.
+     * 
      * @return An unmodifiable list of {@link FeedRange}
      */
     public UnmodifiableList<FeedRange> getFeedRanges() {
