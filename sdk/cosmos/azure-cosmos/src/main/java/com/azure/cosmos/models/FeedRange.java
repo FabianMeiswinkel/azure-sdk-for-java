@@ -7,8 +7,8 @@ public interface FeedRange {
 
     /**
      * Creates a range from a previously obtained string representation.
-     * @param toStringValue A string representation obtained from {@Link toJsonString}
-     * @return A {@Link FeedRange}
+     * @param toStringValue A string representation obtained from {@link toJsonString}
+     * @return A {@link FeedRange}
      */
     public static FeedRange fromJsonString(String toStringValue) {
         FeedRange parsedRange = FeedRangeInternal.tryParse(toStringValue);

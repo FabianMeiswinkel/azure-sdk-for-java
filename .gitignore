@@ -71,3 +71,5 @@ package-lock.json
 
 # Jacoco
 jacoco.exec
+output/pom.html
+temp/pom.xml/pom.xml
