@@ -3212,6 +3212,7 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     }
 
     private static FeedRange toFeedRange(PartitionKeyRange pkRange) {
+        // TODO fabianm implement
         return null;
     }
 }
