@@ -1,7 +1,5 @@
 package com.azure.cosmos.implementation.feedranges;
 
-import java.io.IOException;
-
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -10,23 +8,26 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
+import java.io.IOException;
+
 public class FeedRangeInternalDeserializer extends StdDeserializer<FeedRangeInternal> {
-    private static final long serialVersionUID = 1L;
-    private static final String RangePropertyName = "Range";
     private static final String PartitionKeyPropertyName = "PK";
     private static final String PartitionKeyRangeIdPropertyName = "PKRangeId";
+    private static final String RangePropertyName = "Range";
+    private static final long serialVersionUID = 1L;
 
-    protected FeedRangeInternalDeserializer() {
+    public FeedRangeInternalDeserializer() {
         this(null);
     }
 
-    protected FeedRangeInternalDeserializer(final Class<?> vc) {
+    public FeedRangeInternalDeserializer(final Class<?> vc) {
         super(vc);
     }
 
     @Override
-    public FeedRangeInternal deserialize(final JsonParser parser, final DeserializationContext context)
-    throws IOException, JsonProcessingException {
+    public FeedRangeInternal deserialize(final JsonParser parser,
+                                         final DeserializationContext context)
+        throws IOException {
         final JsonNode node = parser.getCodec().readTree(parser);
         final ObjectMapper mapper = (ObjectMapper)parser.getCodec();
         if (node.has(RangePropertyName)) {

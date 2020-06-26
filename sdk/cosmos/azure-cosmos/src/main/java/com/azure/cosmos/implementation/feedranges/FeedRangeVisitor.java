@@ -9,4 +9,12 @@ public final class FeedRangeVisitor {
     public void visit(FeedRangeEPKImpl feedRange) {
         // No-op since the range is defined by the composite continuation token
     }
+
+    public void visit(FeedRangePartitionKeyRangeImpl feedRange) {
+        // TODO fabianm - Implement
+    }
+
+    public void visit(FeedRangePartitionKeyImpl feedRange) {
+        // TODO fabianm - Implement
+    }
 }

@@ -2,24 +2,34 @@ package com.azure.cosmos.models;
 
 import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
 
-public interface FeedRange {
-    public abstract String toJsonString();
+import java.io.IOException;
 
+public interface FeedRange {
     /**
      * Creates a range from a previously obtained string representation.
-     * @param toStringValue A string representation obtained from {@link toJsonString}
+     *
+     * @param json A string representation obtained from {@link json}
      * @return A {@link FeedRange}
      */
-    public static FeedRange fromJsonString(String toStringValue) {
-        FeedRange parsedRange = FeedRangeInternal.tryParse(toStringValue);
-        if (parsedRange == null)
-        {
+    static FeedRange fromJsonString(String json) {
+        FeedRange parsedRange = null;
+
+        try {
+            parsedRange = FeedRangeInternal.tryParse(json);
+        } catch (IOException e) {
+            throw new IllegalArgumentException(
+                String.format("Unable to parse JSON %s", json), e);
+        }
+
+        if (parsedRange == null) {
             throw new IllegalArgumentException(
                 String.format(
                     "The provided string '%s' does not represent any known format.",
-                    toStringValue));
+                    json));
         }
 
         return parsedRange;
     }
+
+    String toJsonString();
 }

@@ -28,6 +28,7 @@ import com.azure.cosmos.implementation.directconnectivity.GlobalAddressResolver;
 import com.azure.cosmos.implementation.directconnectivity.ServerStoreModel;
 import com.azure.cosmos.implementation.directconnectivity.StoreClient;
 import com.azure.cosmos.implementation.directconnectivity.StoreClientFactory;
+import com.azure.cosmos.implementation.feedranges.FeedRangePartitionKeyRangeImpl;
 import com.azure.cosmos.implementation.http.HttpClient;
 import com.azure.cosmos.implementation.http.HttpClientConfig;
 import com.azure.cosmos.implementation.http.SharedGatewayHttpClient;
@@ -3212,7 +3213,6 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     }
 
     private static FeedRange toFeedRange(PartitionKeyRange pkRange) {
-        // TODO fabianm implement
-        return null;
+        return new FeedRangePartitionKeyRangeImpl(pkRange.getId());
     }
 }
