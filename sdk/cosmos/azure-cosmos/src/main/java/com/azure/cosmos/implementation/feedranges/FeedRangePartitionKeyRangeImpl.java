@@ -5,7 +5,6 @@ import com.azure.cosmos.implementation.PartitionKeyRange;
 import com.azure.cosmos.implementation.Utils.ValueHolder;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.routing.Range;
-import com.azure.cosmos.implementation.routing.RoutingMapProvider;
 import com.azure.cosmos.models.PartitionKeyDefinition;
 import reactor.core.publisher.Mono;
 
@@ -33,27 +32,44 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     }
 
     @Override
+    public <T> Mono<T> acceptAsync(FeedRangeAsyncVisitor<T> visitor) {
+        if (visitor == null) {
+            throw new NullPointerException("visitor");
+        }
+
+        return visitor.visitAsync(this);
+    }
+
+    @Override
     public Mono<UnmodifiableList<Range<String>>> getEffectiveRangesAsync(
         IRoutingMapProvider routingMapProvider,
         String containerRid,
         PartitionKeyDefinition partitionKeyDefinition) {
 
-        Mono<ValueHolder<PartitionKeyRange>> getPkRangeTask = routingMapProvider.tryGetPartitionKeyRangeByIdAsync(null, containerRid, partitionKeyRangeId, false, null)
-            .flatMap((pkRangeHolder) -> {
-                if (pkRangeHolder == null) {
-                    return routingMapProvider.tryGetPartitionKeyRangeByIdAsync(null, containerRid, partitionKeyRangeId, true, null);
-                }
-                else {
-                    return Mono.just(pkRangeHolder);
-                }
-            });
+        Mono<ValueHolder<PartitionKeyRange>> getPkRangeTask =
+            routingMapProvider.tryGetPartitionKeyRangeByIdAsync(
+                null,
+                containerRid, partitionKeyRangeId,
+                false,
+                null)
+                              .flatMap((pkRangeHolder) -> {
+                                  if (pkRangeHolder == null) {
+                                      return routingMapProvider.tryGetPartitionKeyRangeByIdAsync(
+                                          null,
+                                          containerRid, partitionKeyRangeId,
+                                          true,
+                                          null);
+                                  } else {
+                                      return Mono.just(pkRangeHolder);
+                                  }
+                              });
 
         return getPkRangeTask
             .flatMap((pkRangeHolder) -> {
                 if (pkRangeHolder == null) {
                     // TODO fabianm throw exception --> see FeedRangePartitionKeyRange.cs
                 }
-                
+
                 ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
                 temp.add(pkRangeHolder.v.toRange());
 
@@ -62,9 +78,11 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     }
 
     @Override
-    public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(IRoutingMapProvider routingMapProvider,
-                                                                     String containerRid,
-                                                                     PartitionKeyDefinition partitionKeyDefinition) {
+    public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(
+        IRoutingMapProvider routingMapProvider,
+        String containerRid,
+        PartitionKeyDefinition partitionKeyDefinition) {
+
         ArrayList<String> temp = new ArrayList<String>();
         temp.add(this.partitionKeyRangeId);
 

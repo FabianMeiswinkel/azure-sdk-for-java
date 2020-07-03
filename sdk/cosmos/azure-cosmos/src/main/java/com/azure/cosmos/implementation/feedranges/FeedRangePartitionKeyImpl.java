@@ -39,10 +39,20 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
     }
 
     @Override
+    public <T> Mono<T> acceptAsync(FeedRangeAsyncVisitor<T> visitor) {
+        if (visitor == null) {
+            throw new NullPointerException("visitor");
+        }
+
+        return visitor.visitAsync(this);
+    }
+
+    @Override
     public Mono<UnmodifiableList<Range<String>>> getEffectiveRangesAsync(
         IRoutingMapProvider routingMapProvider,
         String containerRid,
         PartitionKeyDefinition partitionKeyDefinition) {
+
         PartitionKeyInternal pkInternal =
             ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
         String effectivePartitionKey = pkInternal.getEffectivePartitionKeyString(pkInternal,
@@ -55,26 +65,33 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
     }
 
     @Override
-    public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(IRoutingMapProvider routingMapProvider,
-                                                                     String containerRid,
-                                                                     PartitionKeyDefinition partitionKeyDefinition) {
+    public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(
+        IRoutingMapProvider routingMapProvider,
+        String containerRid,
+        PartitionKeyDefinition partitionKeyDefinition) {
+
         PartitionKeyInternal pkInternal =
             ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
         String effectivePartitionKey = pkInternal.getEffectivePartitionKeyString(pkInternal,
             partitionKeyDefinition);
-        return routingMapProvider.tryGetOverlappingRangesAsync(null, containerRid,
-            Range.getPointRange(effectivePartitionKey), false, null)
-                                 .flatMap((pkRangeHolder) -> {
-                                     if (pkRangeHolder == null) {
-                                         // TODO fabianm - throw exception
-                                     }
+        return routingMapProvider
+            .tryGetOverlappingRangesAsync(
+                null,
+                containerRid,
+                Range.getPointRange(effectivePartitionKey),
+                false,
+                null)
+            .flatMap(pkRangeHolder -> {
+                if (pkRangeHolder == null) {
+                    // TODO fabianm - throw exception
+                }
 
-                                     String rangeId = pkRangeHolder.v.get(0).getId();
-                                     ArrayList<String> rangeList = new ArrayList<String>();
-                                     rangeList.add(rangeId);
+                String rangeId = pkRangeHolder.v.get(0).getId();
+                ArrayList<String> rangeList = new ArrayList<String>();
+                rangeList.add(rangeId);
 
-                                     return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
-                                 });
+                return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
+            });
     }
 
     @Override
@@ -91,15 +108,24 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
         return pkInternal.toJson();
     }
 
-    private static Mono<PartitionKeyRange> tryGetRangeByEffectivePartitionKey(IRoutingMapProvider routingMapProvider, String containerRid, String effectivePartitionKey) {
-        return routingMapProvider.tryGetOverlappingRangesAsync(null, containerRid,
-            Range.getPointRange(effectivePartitionKey), false, null)
-                                 .flatMap((pkRangeHolder) -> {
-                                     if (pkRangeHolder == null) {
-                                         return Mono.empty();
-                                     }
+    private static Mono<PartitionKeyRange> tryGetRangeByEffectivePartitionKey(
+        IRoutingMapProvider routingMapProvider,
+        String containerRid,
+        String effectivePartitionKey) {
 
-                                     return Mono.just(pkRangeHolder.v.get(0));
-                                 });
+        return routingMapProvider
+            .tryGetOverlappingRangesAsync(
+                null,
+                containerRid,
+                Range.getPointRange(effectivePartitionKey),
+                false,
+                null)
+            .flatMap((pkRangeHolder) -> {
+                if (pkRangeHolder == null) {
+                    return Mono.empty();
+                }
+
+                return Mono.just(pkRangeHolder.v.get(0));
+            });
     }
 }

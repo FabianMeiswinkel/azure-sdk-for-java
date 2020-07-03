@@ -11,7 +11,7 @@ public interface FeedRange {
      * @param json A string representation obtained from {@link json}
      * @return A {@link FeedRange}
      */
-    static FeedRange fromJsonString(String json) {
+    public static FeedRange fromJsonString(String json) {
         FeedRange parsedRange = null;
 
         try {
@@ -31,5 +31,5 @@ public interface FeedRange {
         return parsedRange;
     }
 
-    String toJsonString();
+    public String toJsonString();
 }
