@@ -14,10 +14,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
-    private final PartitionKey partitionKey;
+    private final PartitionKeyInternal partitionKey;
     private final UnmodifiableList<String> partitionKeyRangesList = null;
 
-    public FeedRangePartitionKeyImpl(PartitionKey partitionKey) {
+    public FeedRangePartitionKeyImpl(PartitionKeyInternal partitionKey) {
         if (partitionKey == null) {
             throw new NullPointerException("partitionKey");
         }
@@ -25,7 +25,7 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
         this.partitionKey = partitionKey;
     }
 
-    public PartitionKey getPartitionKey() {
+    public PartitionKeyInternal getPartitionKeyInternal() {
         return this.partitionKey;
     }
 
@@ -53,9 +53,8 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
         String containerRid,
         PartitionKeyDefinition partitionKeyDefinition) {
 
-        PartitionKeyInternal pkInternal =
-            ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
-        String effectivePartitionKey = pkInternal.getEffectivePartitionKeyString(pkInternal,
+        String effectivePartitionKey = this.partitionKey.getEffectivePartitionKeyString(
+            this.partitionKey,
             partitionKeyDefinition);
         Range<String> range = Range.getPointRange(effectivePartitionKey);
         ArrayList<Range<String>> rangeList = new ArrayList<Range<String>>();
@@ -70,9 +69,8 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
         String containerRid,
         PartitionKeyDefinition partitionKeyDefinition) {
 
-        PartitionKeyInternal pkInternal =
-            ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
-        String effectivePartitionKey = pkInternal.getEffectivePartitionKeyString(pkInternal,
+        String effectivePartitionKey = this.partitionKey.getEffectivePartitionKeyString(
+            this.partitionKey,
             partitionKeyDefinition);
         return routingMapProvider
             .tryGetOverlappingRangesAsync(
@@ -82,13 +80,12 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
                 false,
                 null)
             .flatMap(pkRangeHolder -> {
-                if (pkRangeHolder == null) {
-                    // TODO fabianm - throw exception
-                }
-
-                String rangeId = pkRangeHolder.v.get(0).getId();
                 ArrayList<String> rangeList = new ArrayList<String>();
-                rangeList.add(rangeId);
+
+                if (pkRangeHolder != null) {
+                    String rangeId = pkRangeHolder.v.get(0).getId();
+                    rangeList.add(rangeId);
+                }
 
                 return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
             });
@@ -96,16 +93,12 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
 
     @Override
     public String toJsonString() {
-        PartitionKeyInternal pkInternal =
-            ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
-        return pkInternal.toJson();
+        return this.partitionKey.toJson();
     }
 
     @Override
     public String toString() {
-        PartitionKeyInternal pkInternal =
-            ModelBridgeInternal.getPartitionKeyInternal(this.partitionKey);
-        return pkInternal.toJson();
+        return this.partitionKey.toJson();
     }
 
     private static Mono<PartitionKeyRange> tryGetRangeByEffectivePartitionKey(

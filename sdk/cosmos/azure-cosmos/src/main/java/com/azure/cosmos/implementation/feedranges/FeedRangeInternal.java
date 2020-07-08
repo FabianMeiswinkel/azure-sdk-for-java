@@ -36,8 +36,30 @@ public abstract class FeedRangeInternal extends JsonSerializable implements Feed
     public abstract String toString();
 
     public static FeedRangeInternal tryParse(String jsonString) throws IOException {
+        if (jsonString == null) {
+            throw new NullPointerException("jsonString");
+        }
+
         final ObjectMapper mapper = Utils.getSimpleObjectMapper();
         final FeedRangeInternal feedRange = mapper.readValue(jsonString, FeedRangeInternal.class);
         return feedRange;
+    }
+
+    public static FeedRangeInternal convert(FeedRange feedRange) {
+        if (feedRange == null) {
+            throw new NullPointerException("feedRange");
+        }
+
+        if (feedRange instanceof FeedRangeInternal) {
+            return (FeedRangeInternal)feedRange;
+        }
+
+        try {
+            return tryParse(feedRange.toJsonString());
+        }
+        catch (IOException ioError) {
+            throw new IllegalArgumentException(
+                "Invalid/unknown FeedRange instance.", ioError);
+        }
     }
 }

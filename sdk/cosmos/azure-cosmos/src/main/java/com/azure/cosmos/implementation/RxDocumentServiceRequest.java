@@ -805,6 +805,15 @@ public class RxDocumentServiceRequest implements Cloneable {
     }
 
     /**
+     * Gets the request properties.
+     *
+     * @return the request properties.
+     */
+    public Map<String, Object> getProperties() {
+        return this.properties;
+    }
+
+    /**
      * Gets the continuation.
      *
      * @return the continuation.

@@ -4,6 +4,7 @@ import com.azure.cosmos.implementation.IRoutingMapProvider;
 import com.azure.cosmos.implementation.PartitionKeyRange;
 import com.azure.cosmos.implementation.Utils.ValueHolder;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
+import com.azure.cosmos.implementation.routing.PartitionKeyRangeIdentity;
 import com.azure.cosmos.implementation.routing.Range;
 import com.azure.cosmos.models.PartitionKeyDefinition;
 import reactor.core.publisher.Mono;
@@ -13,6 +14,7 @@ import java.util.Collections;
 
 public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     private final String partitionKeyRangeId;
+    private final PartitionKeyRangeIdentity partitionKeyRangeIdentity;
 
     public FeedRangePartitionKeyRangeImpl(String partitionKeyRangeId) {
         if (partitionKeyRangeId == null) {
@@ -20,6 +22,15 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
         }
 
         this.partitionKeyRangeId = partitionKeyRangeId;
+        this.partitionKeyRangeIdentity = new PartitionKeyRangeIdentity(partitionKeyRangeId);
+    }
+
+    public String getPartitionKeyRangeId() {
+        return this.partitionKeyRangeId;
+    }
+
+    public PartitionKeyRangeIdentity getPartitionKeyRangeIdentity() {
+        return this.partitionKeyRangeIdentity;
     }
 
     @Override
@@ -66,12 +77,10 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
 
         return getPkRangeTask
             .flatMap((pkRangeHolder) -> {
-                if (pkRangeHolder == null) {
-                    // TODO fabianm throw exception --> see FeedRangePartitionKeyRange.cs
-                }
-
                 ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
-                temp.add(pkRangeHolder.v.toRange());
+                if (pkRangeHolder != null) {
+                    temp.add(pkRangeHolder.v.toRange());
+                }
 
                 return Mono.just((UnmodifiableList<Range<String>>)Collections.unmodifiableList(temp));
             });
