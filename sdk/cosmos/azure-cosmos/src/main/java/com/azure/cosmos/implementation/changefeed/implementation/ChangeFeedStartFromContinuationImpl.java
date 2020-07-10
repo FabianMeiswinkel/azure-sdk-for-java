@@ -1,5 +1,7 @@
 package com.azure.cosmos.implementation.changefeed.implementation;
 
+import com.azure.cosmos.implementation.Strings;
+
 class ChangeFeedStartFromContinuationImpl extends ChangeFeedStartFromInternal {
     private final String continuation;
 
@@ -8,6 +10,11 @@ class ChangeFeedStartFromContinuationImpl extends ChangeFeedStartFromInternal {
 
         if (continuation == null) {
             throw new NullPointerException("continuation");
+        }
+
+        if (Strings.isNullOrWhiteSpace(continuation)) {
+            throw new IllegalArgumentException(
+                "Continuation token must not be empty.");
         }
 
         this.continuation = continuation;
