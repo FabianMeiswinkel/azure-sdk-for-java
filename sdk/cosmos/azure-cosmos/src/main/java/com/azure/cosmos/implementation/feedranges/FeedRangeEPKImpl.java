@@ -3,7 +3,6 @@ package com.azure.cosmos.implementation.feedranges;
 import com.azure.cosmos.implementation.IRoutingMapProvider;
 import com.azure.cosmos.implementation.PartitionKeyRange;
 import com.azure.cosmos.implementation.Utils;
-import com.azure.cosmos.implementation.apachecommons.collections.CollectionUtils;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.routing.PartitionKeyInternalHelper;
 import com.azure.cosmos.implementation.routing.Range;
@@ -22,13 +21,13 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
     private final Range<String> range;
     private final UnmodifiableList<Range<String>> rangeList;
 
-    public FeedRangeEPKImpl(Range<String> range) {
+    public FeedRangeEPKImpl(final Range<String> range) {
         if (range == null) {
             throw new NullPointerException("range");
         }
 
         this.range = range;
-        ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
+        final ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
         temp.add(range);
 
         this.rangeList = (UnmodifiableList<Range<String>>)Collections.unmodifiableList(temp);
@@ -43,7 +42,7 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
     }
 
     @Override
-    public void accept(FeedRangeVisitor visitor) {
+    public void accept(final FeedRangeVisitor visitor) {
         if (visitor == null) {
             throw new NullPointerException("visitor");
         }
@@ -52,7 +51,7 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
     }
 
     @Override
-    public <T> Mono<T> acceptAsync(FeedRangeAsyncVisitor<T> visitor) {
+    public <T> Mono<T> acceptAsync(final FeedRangeAsyncVisitor<T> visitor) {
         if (visitor == null) {
             throw new NullPointerException("visitor");
         }
@@ -62,48 +61,47 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
 
     @Override
     public Mono<UnmodifiableList<Range<String>>> getEffectiveRangesAsync(
-        IRoutingMapProvider routingMapProvider,
-        String containerRid,
-        PartitionKeyDefinition partitionKeyDefinition) {
+        final IRoutingMapProvider routingMapProvider,
+        final String containerRid,
+        final PartitionKeyDefinition partitionKeyDefinition) {
 
         return Mono.just(this.rangeList);
     }
 
     @Override
     public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(
-        IRoutingMapProvider routingMapProvider,
-        String containerRid,
-        PartitionKeyDefinition partitionKeyDefinition) {
+        final IRoutingMapProvider routingMapProvider,
+        final String containerRid,
+        final PartitionKeyDefinition partitionKeyDefinition) {
 
-        return routingMapProvider
-            .tryGetOverlappingRangesAsync(
-                null,
-                containerRid,
-                this.range,
-                false,
-                null)
-            .flatMap(pkRangeHolder -> {
-                ArrayList<String> rangeList = new ArrayList<String>();
+        return routingMapProvider.tryGetOverlappingRangesAsync(
+            null,
+            containerRid,
+            this.range,
+            false,
+            null)
+                 .flatMap(pkRangeHolder -> {
+                     final ArrayList<String> rangeList = new ArrayList<String>();
 
-                if (pkRangeHolder != null) {
-                    List<PartitionKeyRange> pkRanges = pkRangeHolder.v;
-                    for(PartitionKeyRange pkRange : pkRanges) {
-                        rangeList.add(pkRange.getId());
-                    }
-                }
+                     if (pkRangeHolder != null) {
+                         final List<PartitionKeyRange> pkRanges = pkRangeHolder.v;
+                         for (final PartitionKeyRange pkRange : pkRanges) {
+                             rangeList.add(pkRange.getId());
+                         }
+                     }
 
-                return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
-            });
+                     return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
+                 });
     }
 
     @Override
     public String toJsonString() {
         try {
             return Utils.getSimpleObjectMapper().writeValueAsString(this);
-        } catch (IOException e) {
+        } catch (final IOException e) {
             throw new IllegalArgumentException(
-                "Unable serialize the feedrange token for an extended partition key into a JSON " +
-                    "string", e);
+                "Unable serialize the feed range token for an extended partition key into a JSON string",
+                e);
         }
     }
 

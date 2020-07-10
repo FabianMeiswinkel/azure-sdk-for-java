@@ -22,61 +22,59 @@ public final class FeedRangePartitionKeyRangeExtractorImpl
     private final RxDocumentClientImpl client;
     private final String collectionLink;
 
-    public FeedRangePartitionKeyRangeExtractorImpl(RxDocumentClientImpl client,
-                                                   String collectionLink,
-                                                   ChangeFeedOptions changeFeedOptions) {
+    public FeedRangePartitionKeyRangeExtractorImpl(
+        final RxDocumentClientImpl client,
+        final String collectionLink,
+        final ChangeFeedOptions changeFeedOptions) {
+
         this.client = client;
         this.collectionLink = collectionLink;
     }
 
     @Override
-    public Mono<UnmodifiableList<Range<String>>> visitAsync(FeedRangePartitionKeyImpl feedRange) {
-        RxPartitionKeyRangeCache partitionKeyRangeCache = this.client.getPartitionKeyRangeCache();
-        Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
+    public Mono<UnmodifiableList<Range<String>>> visitAsync(final FeedRangePartitionKeyImpl feedRange) {
+        final RxPartitionKeyRangeCache partitionKeyRangeCache =
+            this.client.getPartitionKeyRangeCache();
+        final Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
             .readCollection(this.collectionLink, null);
 
         return collectionResponseObservable.flatMap(collectionResponse -> {
-            DocumentCollection collection = collectionResponse.getResource();
-            return feedRange.getEffectiveRangesAsync(
-                partitionKeyRangeCache,
+            final DocumentCollection collection = collectionResponse.getResource();
+            return feedRange.getEffectiveRangesAsync(partitionKeyRangeCache,
                 collection.getResourceId(),
                 collection.getPartitionKey());
         });
     }
 
     @Override
-    public Mono<UnmodifiableList<Range<String>>> visitAsync(FeedRangePartitionKeyRangeImpl feedRange) {
-        RxPartitionKeyRangeCache partitionKeyRangeCache = this.client.getPartitionKeyRangeCache();
-        Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
+    public Mono<UnmodifiableList<Range<String>>> visitAsync(final FeedRangePartitionKeyRangeImpl feedRange) {
+        final RxPartitionKeyRangeCache partitionKeyRangeCache =
+            this.client.getPartitionKeyRangeCache();
+        final Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
             .readCollection(this.collectionLink, null);
 
         return collectionResponseObservable.flatMap(collectionResponse -> {
-            DocumentCollection collection = collectionResponse.getResource();
-            return feedRange.getEffectiveRangesAsync(
-                partitionKeyRangeCache,
-                collection.getResourceId(),
-                null);
+            final DocumentCollection collection = collectionResponse.getResource();
+            return feedRange.getEffectiveRangesAsync(partitionKeyRangeCache,
+                collection.getResourceId(), null);
         });
     }
 
     @Override
-    public Mono<UnmodifiableList<Range<String>>> visitAsync(FeedRangeEPKImpl feedRange) {
-        RxPartitionKeyRangeCache partitionKeyRangeCache = this.client.getPartitionKeyRangeCache();
-        Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
+    public Mono<UnmodifiableList<Range<String>>> visitAsync(final FeedRangeEPKImpl feedRange) {
+        final RxPartitionKeyRangeCache partitionKeyRangeCache =
+            this.client.getPartitionKeyRangeCache();
+        final Mono<ResourceResponse<DocumentCollection>> collectionResponseObservable = this.client
             .readCollection(this.collectionLink, null);
 
-        Mono<Utils.ValueHolder<List<PartitionKeyRange>>> valueHolderMono =
-            collectionResponseObservable.flatMap(collectionResponse -> {
-                    DocumentCollection collection = collectionResponse.getResource();
-                    return partitionKeyRangeCache
-                        .tryGetOverlappingRangesAsync(
-                            BridgeInternal.getMetaDataDiagnosticContext(null),
-                            collection.getResourceId(),
-                            feedRange.getRange(),
-                            false,
-                            null);
-                }
-            );
+        final Mono<Utils.ValueHolder<List<PartitionKeyRange>>> valueHolderMono =
+            collectionResponseObservable
+            .flatMap(collectionResponse -> {
+                final DocumentCollection collection = collectionResponse.getResource();
+                return partitionKeyRangeCache.tryGetOverlappingRangesAsync(
+                    BridgeInternal.getMetaDataDiagnosticContext(null), collection.getResourceId(),
+                    feedRange.getRange(), false, null);
+            });
 
         return valueHolderMono.map(partitionKeyRangeListResponse -> {
             return toFeedRanges(partitionKeyRangeListResponse);
@@ -84,18 +82,18 @@ public final class FeedRangePartitionKeyRangeExtractorImpl
     }
 
     private static UnmodifiableList<Range<String>> toFeedRanges(
-        Utils.ValueHolder<List<PartitionKeyRange>> partitionKeyRangeListValueHolder) {
+        final Utils.ValueHolder<List<PartitionKeyRange>> partitionKeyRangeListValueHolder) {
         final List<PartitionKeyRange> partitionKeyRangeList = partitionKeyRangeListValueHolder.v;
         if (partitionKeyRangeList == null) {
             throw new IllegalStateException("PartitionKeyRange list cannot be null");
         }
 
-        List<Range<String>> feedRanges = new ArrayList<Range<String>>();
+        final List<Range<String>> feedRanges = new ArrayList<Range<String>>();
         partitionKeyRangeList.forEach(pkRange -> {
             feedRanges.add(pkRange.toRange());
         });
 
-        UnmodifiableList<Range<String>> feedRangesResult =
+        final UnmodifiableList<Range<String>> feedRangesResult =
             (UnmodifiableList<Range<String>>)Collections.unmodifiableList(feedRanges);
 
         return feedRangesResult;

@@ -5,8 +5,6 @@ import com.azure.cosmos.implementation.PartitionKeyRange;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.routing.PartitionKeyInternal;
 import com.azure.cosmos.implementation.routing.Range;
-import com.azure.cosmos.models.ModelBridgeInternal;
-import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.PartitionKeyDefinition;
 import reactor.core.publisher.Mono;
 
@@ -15,7 +13,6 @@ import java.util.Collections;
 
 public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
     private final PartitionKeyInternal partitionKey;
-    private final UnmodifiableList<String> partitionKeyRangesList = null;
 
     public FeedRangePartitionKeyImpl(PartitionKeyInternal partitionKey) {
         if (partitionKey == null) {

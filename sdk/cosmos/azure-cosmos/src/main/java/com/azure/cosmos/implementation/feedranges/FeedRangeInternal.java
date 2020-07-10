@@ -17,6 +17,23 @@ public abstract class FeedRangeInternal extends JsonSerializable implements Feed
 
     public abstract <T> Mono<T> acceptAsync(FeedRangeAsyncVisitor<T> visitor);
 
+    public static FeedRangeInternal convert(final FeedRange feedRange) {
+        if (feedRange == null) {
+            throw new NullPointerException("feedRange");
+        }
+
+        if (feedRange instanceof FeedRangeInternal) {
+            return (FeedRangeInternal)feedRange;
+        }
+
+        try {
+            return tryParse(feedRange.toJsonString());
+        } catch (final IOException ioError) {
+            throw new IllegalArgumentException(
+                "Invalid/unknown FeedRange instance.", ioError);
+        }
+    }
+
     public abstract Mono<UnmodifiableList<Range<String>>> getEffectiveRangesAsync(
         IRoutingMapProvider routingMapProvider,
         String containerRid,
@@ -35,7 +52,7 @@ public abstract class FeedRangeInternal extends JsonSerializable implements Feed
     @Override
     public abstract String toString();
 
-    public static FeedRangeInternal tryParse(String jsonString) throws IOException {
+    public static FeedRangeInternal tryParse(final String jsonString) throws IOException {
         if (jsonString == null) {
             throw new NullPointerException("jsonString");
         }
@@ -43,23 +60,5 @@ public abstract class FeedRangeInternal extends JsonSerializable implements Feed
         final ObjectMapper mapper = Utils.getSimpleObjectMapper();
         final FeedRangeInternal feedRange = mapper.readValue(jsonString, FeedRangeInternal.class);
         return feedRange;
-    }
-
-    public static FeedRangeInternal convert(FeedRange feedRange) {
-        if (feedRange == null) {
-            throw new NullPointerException("feedRange");
-        }
-
-        if (feedRange instanceof FeedRangeInternal) {
-            return (FeedRangeInternal)feedRange;
-        }
-
-        try {
-            return tryParse(feedRange.toJsonString());
-        }
-        catch (IOException ioError) {
-            throw new IllegalArgumentException(
-                "Invalid/unknown FeedRange instance.", ioError);
-        }
     }
 }

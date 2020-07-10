@@ -1,5 +1,5 @@
 package com.azure.cosmos.implementation.feedranges;
 
-public class FeedRangeContinuationVersion {
-    
+public enum FeedRangeContinuationVersion {
+    V1
 }

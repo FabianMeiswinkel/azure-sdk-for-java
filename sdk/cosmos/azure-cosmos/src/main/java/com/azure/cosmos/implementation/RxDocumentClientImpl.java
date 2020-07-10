@@ -1739,7 +1739,6 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
 
             @Override
             public ConsistencyLevel getDesiredConsistencyLevelAsync() {
-                // TODO Auto-generated method stub
                 return RxDocumentClientImpl.this.consistencyLevel;
             }
 
@@ -1750,13 +1749,13 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
 
             @Override
             public QueryCompatibilityMode getQueryCompatibilityMode() {
-                // TODO Auto-generated method stub
                 return QueryCompatibilityMode.Default;
             }
 
             @Override
             public Mono<RxDocumentServiceResponse> readFeedAsync(RxDocumentServiceRequest request) {
                 // TODO Auto-generated method stub
+                // TODO fabianm - Implement
                 return null;
             }
         };

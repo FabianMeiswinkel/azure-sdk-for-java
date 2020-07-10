@@ -16,7 +16,7 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     private final String partitionKeyRangeId;
     private final PartitionKeyRangeIdentity partitionKeyRangeIdentity;
 
-    public FeedRangePartitionKeyRangeImpl(String partitionKeyRangeId) {
+    public FeedRangePartitionKeyRangeImpl(final String partitionKeyRangeId) {
         if (partitionKeyRangeId == null) {
             throw new NullPointerException("partitionKeyRangeId");
         }
@@ -34,7 +34,7 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     }
 
     @Override
-    public void accept(FeedRangeVisitor visitor) {
+    public void accept(final FeedRangeVisitor visitor) {
         if (visitor == null) {
             throw new NullPointerException("visitor");
         }
@@ -43,7 +43,7 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
     }
 
     @Override
-    public <T> Mono<T> acceptAsync(FeedRangeAsyncVisitor<T> visitor) {
+    public <T> Mono<T> acceptAsync(final FeedRangeAsyncVisitor<T> visitor) {
         if (visitor == null) {
             throw new NullPointerException("visitor");
         }
@@ -53,46 +53,47 @@ public final class FeedRangePartitionKeyRangeImpl extends FeedRangeInternal {
 
     @Override
     public Mono<UnmodifiableList<Range<String>>> getEffectiveRangesAsync(
-        IRoutingMapProvider routingMapProvider,
-        String containerRid,
-        PartitionKeyDefinition partitionKeyDefinition) {
+        final IRoutingMapProvider routingMapProvider,
+        final String containerRid,
+        final PartitionKeyDefinition partitionKeyDefinition) {
 
-        Mono<ValueHolder<PartitionKeyRange>> getPkRangeTask =
-            routingMapProvider.tryGetPartitionKeyRangeByIdAsync(
+        final Mono<ValueHolder<PartitionKeyRange>> getPkRangeTask = routingMapProvider
+            .tryGetPartitionKeyRangeByIdAsync(
                 null,
-                containerRid, partitionKeyRangeId,
+                containerRid,
+                partitionKeyRangeId,
                 false,
                 null)
-                              .flatMap((pkRangeHolder) -> {
-                                  if (pkRangeHolder == null) {
-                                      return routingMapProvider.tryGetPartitionKeyRangeByIdAsync(
-                                          null,
-                                          containerRid, partitionKeyRangeId,
-                                          true,
-                                          null);
-                                  } else {
-                                      return Mono.just(pkRangeHolder);
-                                  }
-                              });
-
-        return getPkRangeTask
             .flatMap((pkRangeHolder) -> {
-                ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
-                if (pkRangeHolder != null) {
-                    temp.add(pkRangeHolder.v.toRange());
+                if (pkRangeHolder == null) {
+                    return routingMapProvider.tryGetPartitionKeyRangeByIdAsync(
+                        null,
+                        containerRid,
+                        partitionKeyRangeId,
+                        true,
+                        null);
+                } else {
+                    return Mono.just(pkRangeHolder);
                 }
-
-                return Mono.just((UnmodifiableList<Range<String>>)Collections.unmodifiableList(temp));
             });
+
+        return getPkRangeTask.flatMap((pkRangeHolder) -> {
+            final ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
+            if (pkRangeHolder != null) {
+                temp.add(pkRangeHolder.v.toRange());
+            }
+
+            return Mono.just((UnmodifiableList<Range<String>>)Collections.unmodifiableList(temp));
+        });
     }
 
     @Override
     public Mono<UnmodifiableList<String>> getPartitionKeyRangesAsync(
-        IRoutingMapProvider routingMapProvider,
-        String containerRid,
-        PartitionKeyDefinition partitionKeyDefinition) {
+        final IRoutingMapProvider routingMapProvider,
+        final String containerRid,
+        final PartitionKeyDefinition partitionKeyDefinition) {
 
-        ArrayList<String> temp = new ArrayList<String>();
+        final ArrayList<String> temp = new ArrayList<String>();
         temp.add(this.partitionKeyRangeId);
 
         return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(temp));

@@ -186,8 +186,6 @@ public class PipelinedDocumentQueryExecutionContext<T extends Resource> implemen
 
     @Override
     public Flux<FeedResponse<T>> executeAsync() {
-        // TODO Auto-generated method stub
-
         // TODO add more code here
         return this.component.drainAsync(actualPageSize);
     }

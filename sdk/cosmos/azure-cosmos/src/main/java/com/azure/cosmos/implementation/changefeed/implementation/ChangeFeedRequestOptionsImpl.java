@@ -13,28 +13,6 @@ public final class ChangeFeedRequestOptionsImpl {
         ChangeFeedStartFromInternal startFromInternal,
         FeedRangeInternal feedRange)
     {
-    }
-
-    public static CosmosChangeFeedRequestOptions createForProcessingFromBeginning(FeedRange feedRange) {
         // TODO fabianm - Implement
-        return null;
-    }
-
-    public static CosmosChangeFeedRequestOptions createForProcessingFromNow(FeedRange feedRange) {
-        // TODO fabianm - Implement
-        return null;
-    }
-
-    public static CosmosChangeFeedRequestOptions createForProcessingFromPointInTime(
-        Instant pointInTime,
-        FeedRange feedRange) {
-
-        // TODO fabianm - Implement
-        return null;
-    }
-
-    public static CosmosChangeFeedRequestOptions createForProcessingFromContinuation(String continuationToken) {
-        // TODO fabianm - Implement
-        return null;
     }
 }

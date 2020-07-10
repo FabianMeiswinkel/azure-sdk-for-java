@@ -1,15 +1,15 @@
 package com.azure.cosmos.implementation.feedranges;
 
-import java.util.Map;
-
 import com.azure.cosmos.implementation.HttpConstants;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
+
+import java.util.Map;
 
 public class FeedRangeRequestMessagePopulatorVisitor extends FeedRangeVisitor {
     private final RxDocumentServiceRequest request;
 
-    public FeedRangeRequestMessagePopulatorVisitor(RxDocumentServiceRequest request) {
-        if(request == null) {
+    public FeedRangeRequestMessagePopulatorVisitor(final RxDocumentServiceRequest request) {
+        if (request == null) {
             throw new NullPointerException("request");
         }
 
@@ -17,16 +17,15 @@ public class FeedRangeRequestMessagePopulatorVisitor extends FeedRangeVisitor {
     }
 
     @Override
-    public void visit(FeedRangeEPKImpl feedRange) {
+    public void visit(final FeedRangeEPKImpl feedRange) {
         if (feedRange == null) {
             throw new NullPointerException("feedRange");
         }
 
-        Map<String, Object> properties = this.request.getProperties();
+        final Map<String, Object> properties = this.request.getProperties();
 
         // In case EPK has already been set by compute
-        if (properties.containsKey(EpkRequestPropertyConstants.START_EPK_STRING))
-        {
+        if (properties.containsKey(EpkRequestPropertyConstants.START_EPK_STRING)) {
             return;
         }
 
@@ -35,17 +34,16 @@ public class FeedRangeRequestMessagePopulatorVisitor extends FeedRangeVisitor {
     }
 
     @Override
-    public void visit(FeedRangePartitionKeyRangeImpl feedRange) {
+    public void visit(final FeedRangePartitionKeyRangeImpl feedRange) {
         if (feedRange == null) {
             throw new NullPointerException("feedRange");
         }
 
-        this.request.routeTo(
-            feedRange.getPartitionKeyRangeIdentity());
+        this.request.routeTo(feedRange.getPartitionKeyRangeIdentity());
     }
 
     @Override
-    public void visit(FeedRangePartitionKeyImpl feedRange) {
+    public void visit(final FeedRangePartitionKeyImpl feedRange) {
         if (feedRange == null) {
             throw new NullPointerException("feedRange");
         }
