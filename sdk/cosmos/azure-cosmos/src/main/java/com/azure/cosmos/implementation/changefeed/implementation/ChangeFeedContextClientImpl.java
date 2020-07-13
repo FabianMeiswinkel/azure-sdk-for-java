@@ -3,7 +3,6 @@
 package com.azure.cosmos.implementation.changefeed.implementation;
 
 import com.azure.cosmos.BridgeInternal;
-import com.azure.cosmos.implementation.ChangeFeedOptions;
 import com.azure.cosmos.CosmosAsyncContainer;
 import com.azure.cosmos.models.CosmosContainerResponse;
 import com.azure.cosmos.CosmosAsyncDatabase;
@@ -81,24 +80,6 @@ public class ChangeFeedContextClientImpl implements ChangeFeedContextClient {
     public Flux<FeedResponse<PartitionKeyRange>> readPartitionKeyRangeFeed(String partitionKeyRangesOrCollectionLink, CosmosQueryRequestOptions cosmosQueryRequestOptions) {
         return this.documentClient.readPartitionKeyRanges(partitionKeyRangesOrCollectionLink, cosmosQueryRequestOptions)
             .publishOn(this.rxScheduler);
-    }
-
-    @Override
-    public Flux<FeedResponse<JsonNode>> createDocumentChangeFeedQuery(CosmosAsyncContainer collectionLink,
-                                                                      ChangeFeedOptions feedOptions) {
-        AsyncDocumentClient clientWrapper =
-            CosmosBridgeInternal.getAsyncDocumentClient(collectionLink.getDatabase());
-        Flux<FeedResponse<JsonNode>> feedResponseFlux =
-            clientWrapper.queryDocumentChangeFeed(BridgeInternal.extractContainerSelfLink(collectionLink), feedOptions)
-                                                                    .map(response -> {
-                                                                        List<JsonNode> results = response.getResults()
-                                                                                                                     .stream()
-                                                                                                                     .map(document ->
-                                                                                                                         ModelBridgeInternal.toObjectFromJsonSerializable(document, JsonNode.class))
-                                                                                                                     .collect(Collectors.toList());
-                                                                        return BridgeInternal.toFeedResponsePage(results, response.getResponseHeaders(), false);
-                                                                    });
-        return feedResponseFlux.publishOn(this.rxScheduler);
     }
 
     @Override

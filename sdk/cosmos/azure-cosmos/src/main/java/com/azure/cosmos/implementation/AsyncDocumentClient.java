@@ -623,19 +623,6 @@ public interface AsyncDocumentClient {
      * In case of failure the {@link Flux} will error.
      *
      * @param collectionLink    the link to the parent document collection.
-     * @param changeFeedOptions the change feed options.
-     * @return a {@link Flux} containing one or several feed response pages of the obtained documents or an error.
-     */
-    Flux<FeedResponse<Document>> queryDocumentChangeFeed(String collectionLink,
-                                                         ChangeFeedOptions changeFeedOptions);
-
-    /**
-     * Query for documents change feed in a document collection.
-     * After subscription the operation will be performed.
-     * The {@link Flux} will contain one or several feed response pages of the obtained documents.
-     * In case of failure the {@link Flux} will error.
-     *
-     * @param collectionLink    the link to the parent document collection.
      * @param requestOptions the change feed request options.
      * @return a {@link Flux} containing one or several feed response pages of the obtained documents or an error.
      */

@@ -1793,25 +1793,23 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     }
 
     @Override
-    public Flux<FeedResponse<Document>> queryDocumentChangeFeed(final String collectionLink,
-                                                                      final ChangeFeedOptions changeFeedOptions) {
+    public Flux<FeedResponse<Document>> queryDocumentChangeFeed(
+        final String collectionLink,
+        final CosmosChangeFeedRequestOptions requestOptions) {
 
         if (StringUtils.isEmpty(collectionLink)) {
             throw new IllegalArgumentException("collectionLink");
         }
 
-        ChangeFeedQueryImpl<Document> changeFeedQueryImpl = new ChangeFeedQueryImpl<Document>(this, ResourceType.Document,
-                Document.class, collectionLink, changeFeedOptions);
+        ChangeFeedQueryImpl<Document> changeFeedQueryImpl =
+            new ChangeFeedQueryImpl<Document>(
+                this,
+                ResourceType.Document,
+                Document.class,
+                collectionLink,
+                requestOptions);
 
         return changeFeedQueryImpl.executeAsync();
-    }
-
-    @Override
-    public Flux<FeedResponse<Document>> queryDocumentChangeFeed(final String collectionLink,
-                                                                final CosmosChangeFeedRequestOptions requestOptions) {
-
-        // TODO fabianm - Implement
-        return null;
     }
 
     @Override

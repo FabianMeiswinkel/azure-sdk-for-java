@@ -1,6 +1,7 @@
 package com.azure.cosmos.models;
 
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
+import com.azure.cosmos.implementation.Strings;
 import com.azure.cosmos.implementation.changefeed.implementation.ChangeFeedRequestOptionsImpl;
 import com.azure.cosmos.implementation.changefeed.implementation.ChangeFeedStartFromInternal;
 import com.azure.cosmos.implementation.feedranges.FeedRangeContinuation;
@@ -61,6 +62,39 @@ public final class CosmosChangeFeedRequestOptions {
         return this;
     }
 
+    public CosmosChangeFeedRequestOptions setRequestContinuation(String continuation) {
+
+        final FeedRangeContinuation feedRangeContinuation =
+            toFeedRangeContinuation(continuation);
+
+        final FeedRangeInternal feedRangeFromContinuation = feedRangeContinuation.getFeedRangeInternal();
+        if (feedRangeFromContinuation.toJsonString() !=
+            this.feedRangeInternal.toJsonString()) {
+
+            final String message = String.format(
+                "The feed range used to construct the request options '%s' isn't the same " +
+                    "as the feed range '%s' of this continuation '%s'.",
+                this.feedRangeInternal.toJsonString(),
+                feedRangeFromContinuation.toJsonString(),
+                continuation);
+
+            throw new IllegalArgumentException(message);
+        }
+
+        String continuationToken = feedRangeContinuation.getContinuation();
+        if (Strings.isNullOrWhiteSpace(continuationToken)) {
+            final String message = String.format(
+                "No continuation available in the provided feed range continuation '%s'.",
+                continuation);
+
+            throw new IllegalArgumentException(message);
+        }
+
+        this.startFromInternal = ChangeFeedStartFromInternal.createFromContinuation(continuationToken);
+
+        return this;
+    }
+
     public static CosmosChangeFeedRequestOptions createForProcessingFromBeginning(FeedRange feedRange) {
         if (feedRange == null) {
             throw new NullPointerException("feedRange");
@@ -74,19 +108,8 @@ public final class CosmosChangeFeedRequestOptions {
     public static CosmosChangeFeedRequestOptions createForProcessingFromContinuation(
         String continuation) {
 
-        if (continuation == null) {
-            throw new NullPointerException("continuation");
-        }
-
         final FeedRangeContinuation feedRangeContinuation =
-            FeedRangeContinuation.tryParse(continuation);
-
-        if (feedRangeContinuation == null) {
-            final String message = String.format(
-                "The provided string '%s' does not represent any known format.",
-                continuation);
-            throw new IllegalArgumentException(message);
-        }
+            toFeedRangeContinuation(continuation);
 
         final FeedRangeInternal feedRange = feedRangeContinuation.getFeedRangeInternal();
         final String continuationToken = feedRangeContinuation.getContinuation();
@@ -156,5 +179,23 @@ public final class CosmosChangeFeedRequestOptions {
     public CosmosChangeFeedRequestOptions setProperties(Map<String, Object> properties) {
         this.properties = properties;
         return this;
+    }
+
+    private static FeedRangeContinuation toFeedRangeContinuation(String continuation) {
+        final FeedRangeContinuation feedRangeContinuation =
+            FeedRangeContinuation.tryParse(continuation);
+
+        if (Strings.isNullOrWhiteSpace(continuation)) {
+            throw new NullPointerException("continuation");
+        }
+
+        if (feedRangeContinuation == null) {
+            final String message = String.format(
+                "The provided string '%s' does not represent any known format.",
+                continuation);
+            throw new IllegalArgumentException(message);
+        }
+
+        return feedRangeContinuation;
     }
 }

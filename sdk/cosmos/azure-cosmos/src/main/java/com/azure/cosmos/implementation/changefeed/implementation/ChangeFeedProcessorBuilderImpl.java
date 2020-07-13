@@ -4,12 +4,11 @@ package com.azure.cosmos.implementation.changefeed.implementation;
 
 import com.azure.cosmos.ChangeFeedProcessor;
 import com.azure.cosmos.ConsistencyLevel;
-import com.azure.cosmos.implementation.AsyncDocumentClient;
-import com.azure.cosmos.implementation.ChangeFeedOptions;
 import com.azure.cosmos.implementation.Strings;
 import com.azure.cosmos.implementation.apachecommons.lang.tuple.Pair;
-import com.azure.cosmos.implementation.guava25.collect.Streams;
 import com.azure.cosmos.models.ChangeFeedProcessorOptions;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
+import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.CosmosAsyncContainer;
 import com.azure.cosmos.implementation.changefeed.Bootstrapper;
 import com.azure.cosmos.implementation.changefeed.ChangeFeedContextClient;
@@ -26,13 +25,13 @@ import com.azure.cosmos.implementation.changefeed.PartitionProcessor;
 import com.azure.cosmos.implementation.changefeed.PartitionProcessorFactory;
 import com.azure.cosmos.implementation.changefeed.PartitionSupervisorFactory;
 import com.azure.cosmos.implementation.changefeed.RequestOptionsFactory;
+import com.azure.cosmos.implementation.feedranges.FeedRangePartitionKeyRangeImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.util.function.Tuple2;
 
 import java.net.URI;
 import java.time.Duration;
@@ -64,7 +63,6 @@ import static com.azure.cosmos.CosmosBridgeInternal.getContextClient;
  */
 public class ChangeFeedProcessorBuilderImpl implements ChangeFeedProcessor, AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(ChangeFeedProcessorBuilderImpl.class);
-    private static final long DefaultUnhealthinessDuration = Duration.ofMinutes(15).toMillis();
     private final Duration sleepTime = Duration.ofSeconds(15);
     private final Duration lockTime = Duration.ofSeconds(30);
     private static final int DefaultQueryPartitionsMaxBatchSize = 100;
@@ -153,13 +151,20 @@ public class ChangeFeedProcessorBuilderImpl implements ChangeFeedProcessor, Auto
 
         return this.leaseStoreManager.getAllLeases()
             .flatMap(lease -> {
-                ChangeFeedOptions options = new ChangeFeedOptions()
-                    .setMaxItemCount(1)
-                    .setPartitionKeyRangeId(lease.getLeaseToken())
-                    .setStartFromBeginning(true)
-                    .setRequestContinuation(lease.getContinuationToken());
+                final CosmosChangeFeedRequestOptions options;
+                String requestContinuation = lease.getContinuationToken();
+                if (!Strings.isNullOrWhiteSpace(requestContinuation)) {
+                    options = CosmosChangeFeedRequestOptions.createForProcessingFromContinuation(requestContinuation);
+                } else {
+                    final FeedRange feedRange = new FeedRangePartitionKeyRangeImpl(lease.getLeaseToken());
+                    options = CosmosChangeFeedRequestOptions.createForProcessingFromBeginning(feedRange);
+                }
 
-                return this.feedContextClient.createDocumentChangeFeedQuery(this.feedContextClient.getContainerClient(), options)
+                options.setMaxItemCount(1);
+
+                return this.feedContextClient.createDocumentChangeFeedQuery(
+                    this.feedContextClient.getContainerClient(),
+                    options)
                     .take(1)
                     .map(feedResponse -> {
                         final String pkRangeIdSeparator = ":";

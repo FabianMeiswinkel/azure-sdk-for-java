@@ -1,7 +1,6 @@
 package com.azure.cosmos.implementation.feedranges;
 
 import com.azure.cosmos.BridgeInternal;
-import com.azure.cosmos.implementation.ChangeFeedOptions;
 import com.azure.cosmos.implementation.DocumentCollection;
 import com.azure.cosmos.implementation.PartitionKeyRange;
 import com.azure.cosmos.implementation.ResourceResponse;
@@ -10,6 +9,8 @@ import com.azure.cosmos.implementation.Utils;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.caches.RxPartitionKeyRangeCache;
 import com.azure.cosmos.implementation.routing.Range;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
+
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -24,8 +25,7 @@ public final class FeedRangePartitionKeyRangeExtractorImpl
 
     public FeedRangePartitionKeyRangeExtractorImpl(
         final RxDocumentClientImpl client,
-        final String collectionLink,
-        final ChangeFeedOptions changeFeedOptions) {
+        final String collectionLink) {
 
         this.client = client;
         this.collectionLink = collectionLink;

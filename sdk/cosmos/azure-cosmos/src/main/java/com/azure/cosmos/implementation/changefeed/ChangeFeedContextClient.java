@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.implementation.changefeed;
 
-import com.azure.cosmos.implementation.ChangeFeedOptions;
 import com.azure.cosmos.CosmosAsyncContainer;
 import com.azure.cosmos.models.CosmosContainerResponse;
 import com.azure.cosmos.CosmosAsyncDatabase;
@@ -36,16 +35,6 @@ public interface ChangeFeedContextClient {
      * @return an a {@link Flux} containing one or several feed response pages of the obtained items or an error.
      */
     Flux<FeedResponse<PartitionKeyRange>> readPartitionKeyRangeFeed(String partitionKeyRangesOrCollectionLink, CosmosQueryRequestOptions cosmosQueryRequestOptions);
-
-    /**
-     * Method to create a change feed query for documents.
-     *
-     * @param collectionLink Specifies the collection to read documents from.
-     * @param feedOptions The options for processing the query results feed.
-     * @return a {@link Flux} containing one or several feed response pages of the obtained items or an error.
-     */
-    Flux<FeedResponse<JsonNode>> createDocumentChangeFeedQuery(CosmosAsyncContainer collectionLink,
-                                                               ChangeFeedOptions feedOptions);
 
     /**
      * Method to create a change feed query for documents.
