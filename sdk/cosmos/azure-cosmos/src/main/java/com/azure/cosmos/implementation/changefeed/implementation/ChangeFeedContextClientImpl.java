@@ -10,6 +10,7 @@ import com.azure.cosmos.CosmosAsyncDatabase;
 import com.azure.cosmos.models.CosmosDatabaseResponse;
 import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.CosmosBridgeInternal;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosContainerProperties;
 import com.azure.cosmos.models.CosmosContainerRequestOptions;
 import com.azure.cosmos.models.CosmosDatabaseRequestOptions;
@@ -97,6 +98,24 @@ public class ChangeFeedContextClientImpl implements ChangeFeedContextClient {
                                                                                                                      .collect(Collectors.toList());
                                                                         return BridgeInternal.toFeedResponsePage(results, response.getResponseHeaders(), false);
                                                                     });
+        return feedResponseFlux.publishOn(this.rxScheduler);
+    }
+
+    @Override
+    public Flux<FeedResponse<JsonNode>> createDocumentChangeFeedQuery(CosmosAsyncContainer collectionLink,
+                                                                      CosmosChangeFeedRequestOptions requestOptions) {
+        AsyncDocumentClient clientWrapper =
+            CosmosBridgeInternal.getAsyncDocumentClient(collectionLink.getDatabase());
+        Flux<FeedResponse<JsonNode>> feedResponseFlux =
+            clientWrapper.queryDocumentChangeFeed(BridgeInternal.extractContainerSelfLink(collectionLink), requestOptions)
+                .map(response -> {
+                    List<JsonNode> results = response.getResults()
+                        .stream()
+                        .map(document ->
+                            ModelBridgeInternal.toObjectFromJsonSerializable(document, JsonNode.class))
+                        .collect(Collectors.toList());
+                    return BridgeInternal.toFeedResponsePage(results, response.getResponseHeaders(), false);
+                });
         return feedResponseFlux.publishOn(this.rxScheduler);
     }
 

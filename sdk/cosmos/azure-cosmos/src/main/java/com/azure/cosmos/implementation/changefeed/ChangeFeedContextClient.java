@@ -8,6 +8,7 @@ import com.azure.cosmos.models.CosmosContainerResponse;
 import com.azure.cosmos.CosmosAsyncDatabase;
 import com.azure.cosmos.models.CosmosDatabaseResponse;
 import com.azure.cosmos.models.CosmosItemResponse;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosContainerProperties;
 import com.azure.cosmos.models.CosmosContainerRequestOptions;
 import com.azure.cosmos.models.CosmosDatabaseRequestOptions;
@@ -45,6 +46,16 @@ public interface ChangeFeedContextClient {
      */
     Flux<FeedResponse<JsonNode>> createDocumentChangeFeedQuery(CosmosAsyncContainer collectionLink,
                                                                ChangeFeedOptions feedOptions);
+
+    /**
+     * Method to create a change feed query for documents.
+     *
+     * @param collectionLink Specifies the collection to read documents from.
+     * @param requestOptions The options for processing the query results feed.
+     * @return a {@link Flux} containing one or several feed response pages of the obtained items or an error.
+     */
+    Flux<FeedResponse<JsonNode>> createDocumentChangeFeedQuery(CosmosAsyncContainer collectionLink,
+                                                               CosmosChangeFeedRequestOptions requestOptions);
 
     /**
      * Reads a database.

@@ -24,6 +24,7 @@ import com.azure.cosmos.implementation.RequestOptions;
 import com.azure.cosmos.implementation.RequestVerb;
 import com.azure.cosmos.implementation.Resource;
 import com.azure.cosmos.implementation.ResourceResponse;
+import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
 import com.azure.cosmos.implementation.StoredProcedure;
 import com.azure.cosmos.implementation.StoredProcedureResponse;
@@ -473,6 +474,15 @@ public final class ModelBridgeInternal {
     @Warning(value = INTERNAL_USE_ONLY_WARNING)
     public static Object getObjectByPathFromJsonSerializable(JsonSerializable jsonSerializable, List<String> propertyNames) {
         return jsonSerializable.getObjectByPath(propertyNames);
+    }
+
+    @Warning(value = INTERNAL_USE_ONLY_WARNING)
+    public static void populateChangeFeedRequestOptions(
+        CosmosChangeFeedRequestOptions options,
+        RxDocumentServiceRequest request,
+        String continuation) {
+
+        options.populateRequestOptions(request, continuation);
     }
 
     @Warning(value = INTERNAL_USE_ONLY_WARNING)

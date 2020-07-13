@@ -8,6 +8,8 @@ import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.FeedResponse;
 import com.azure.cosmos.implementation.Resource;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
+import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -28,6 +30,7 @@ public class Paginator {
             ChangeFeedOptions feedOptions, BiFunction<String, Integer, RxDocumentServiceRequest> createRequestFunc,
             Function<RxDocumentServiceRequest, Mono<FeedResponse<T>>> executeFunc, Class<T> resourceType,
             int maxPageSize) {
+        // TODO fabianm - Delete
         return getPaginatedQueryResultAsObservable(feedOptions.getRequestContinuation(), createRequestFunc, executeFunc, resourceType,
                 -1, maxPageSize, true);
     }
@@ -54,7 +57,7 @@ public class Paginator {
                 top, maxPageSize, false);
     }
 
-    private static <T extends Resource> Flux<FeedResponse<T>> getPaginatedQueryResultAsObservable(
+    public static <T extends Resource> Flux<FeedResponse<T>> getPaginatedQueryResultAsObservable(
             String continuationToken,
             BiFunction<String, Integer, RxDocumentServiceRequest> createRequestFunc,
             Function<RxDocumentServiceRequest, Mono<FeedResponse<T>>> executeFunc, Class<T> resourceType,

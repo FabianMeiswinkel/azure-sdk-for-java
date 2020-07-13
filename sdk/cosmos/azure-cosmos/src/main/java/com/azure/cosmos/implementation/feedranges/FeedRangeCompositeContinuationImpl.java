@@ -249,18 +249,14 @@ public class FeedRangeCompositeContinuationImpl extends FeedRangeContinuation {
         }
     }
 
-    public static FeedRangeContinuation tryParse(final String jsonString) {
+    public static FeedRangeContinuation parse(final String jsonString) throws IOException {
         if (jsonString == null) {
             throw new NullPointerException("jsonString");
         }
 
         final ObjectMapper mapper = Utils.getSimpleObjectMapper();
 
-        try {
-            return mapper.readValue(jsonString, FeedRangeCompositeContinuationImpl.class);
-        } catch (final IOException ioException) {
-            return null;
-        }
+        return mapper.readValue(jsonString, FeedRangeCompositeContinuationImpl.class);
     }
 
     private void createChildRanges(final List<PartitionKeyRange> keyRanges) {

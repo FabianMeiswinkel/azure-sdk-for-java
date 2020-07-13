@@ -7,19 +7,32 @@ import com.azure.cosmos.implementation.feedranges.FeedRangeContinuation;
 import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
 
 import java.time.Instant;
+import java.util.Map;
 
 public final class CosmosChangeFeedRequestOptions {
     private static final Integer DEFAULT_MAX_ITEM_COUNT = 1000;
     private FeedRangeInternal feedRangeInternal;
     private Integer maxItemCount;
     private ChangeFeedStartFromInternal startFromInternal;
+    private Map<String, Object> properties;
 
     private CosmosChangeFeedRequestOptions(
         FeedRangeInternal feedRange,
         ChangeFeedStartFromInternal startFromInternal) {
 
         super();
+
+        if (feedRange == null) {
+            throw new NullPointerException("feedRange");
+        }
+
+        if (startFromInternal == null) {
+            throw new NullPointerException("startFromInternal");
+        }
+
         this.maxItemCount = DEFAULT_MAX_ITEM_COUNT;
+        this.feedRangeInternal = feedRange;
+        this.startFromInternal = startFromInternal;
     }
 
     public FeedRange getFeedRange() {
@@ -77,7 +90,7 @@ public final class CosmosChangeFeedRequestOptions {
 
         final FeedRangeInternal feedRange = feedRangeContinuation.getFeedRangeInternal();
         final String continuationToken = feedRangeContinuation.getContinuation();
-        if (continuation != null) {
+        if (continuationToken != null) {
             return new CosmosChangeFeedRequestOptions(
                 feedRange,
                 ChangeFeedStartFromInternal.createFromContinuation(continuationToken));
@@ -115,12 +128,33 @@ public final class CosmosChangeFeedRequestOptions {
             ChangeFeedStartFromInternal.createFromPointInTime(pointInTime));
     }
 
-    void populateRequestOptions(RxDocumentServiceRequest request) {
+    void populateRequestOptions(RxDocumentServiceRequest request, String continuation) {
         ChangeFeedRequestOptionsImpl.populateRequestOptions(
             this,
             request,
             this.startFromInternal,
-            this.feedRangeInternal
+            this.feedRangeInternal,
+            continuation
         );
+    }
+
+    /**
+     * Gets the properties
+     *
+     * @return Map of request options properties
+     */
+    public Map<String, Object> getProperties() {
+        return properties;
+    }
+
+    /**
+     * Sets the properties used to identify the request token.
+     *
+     * @param properties the properties.
+     * @return the FeedOptionsBase.
+     */
+    public CosmosChangeFeedRequestOptions setProperties(Map<String, Object> properties) {
+        this.properties = properties;
+        return this;
     }
 }

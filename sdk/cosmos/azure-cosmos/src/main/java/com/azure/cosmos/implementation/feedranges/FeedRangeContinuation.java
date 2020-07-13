@@ -1,8 +1,11 @@
 package com.azure.cosmos.implementation.feedranges;
 
+import java.io.IOException;
+
 import com.azure.cosmos.implementation.RxDocumentClientImpl;
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
 import com.azure.cosmos.implementation.ShouldRetryResult;
+import com.azure.cosmos.implementation.Strings;
 import com.azure.cosmos.models.FeedRange;
 import reactor.core.publisher.Mono;
 
@@ -51,7 +54,38 @@ public abstract class FeedRangeContinuation {
 
     public static FeedRangeContinuation tryParse(
         String toStringValue) {
-        return FeedRangeCompositeContinuationImpl.tryParse(toStringValue);
+        
+        try
+        {
+            return FeedRangeCompositeContinuationImpl.parse(toStringValue);
+        }
+        catch (final IOException ioError) {
+            return null;
+        }
+    }
+
+    public static FeedRangeContinuation convert(final String continuationToken) {
+        if (Strings.isNullOrWhiteSpace(continuationToken)) {
+            throw new NullPointerException("continuationToken");
+        }
+
+        try {
+            FeedRangeContinuation returnValue = FeedRangeCompositeContinuationImpl.parse(continuationToken);
+            if (returnValue != null) {
+                return returnValue;
+            }
+
+            throw new IllegalArgumentException(
+                String.format(
+                    "Invalid Feed range continuation token '%s'",
+                    continuationToken));
+        } catch (final IOException ioError) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Invalid Feed range continuation token '%s'",
+                    continuationToken),
+                 ioError);
+        }
     }
 
     public abstract void validateContainer(final String containerRid) throws IllegalArgumentException;

@@ -6,6 +6,7 @@ import com.azure.core.credential.AzureKeyCredential;
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.models.FeedResponse;
@@ -626,7 +627,20 @@ public interface AsyncDocumentClient {
      * @return a {@link Flux} containing one or several feed response pages of the obtained documents or an error.
      */
     Flux<FeedResponse<Document>> queryDocumentChangeFeed(String collectionLink,
-                                                               ChangeFeedOptions changeFeedOptions);
+                                                         ChangeFeedOptions changeFeedOptions);
+
+    /**
+     * Query for documents change feed in a document collection.
+     * After subscription the operation will be performed.
+     * The {@link Flux} will contain one or several feed response pages of the obtained documents.
+     * In case of failure the {@link Flux} will error.
+     *
+     * @param collectionLink    the link to the parent document collection.
+     * @param requestOptions the change feed request options.
+     * @return a {@link Flux} containing one or several feed response pages of the obtained documents or an error.
+     */
+    Flux<FeedResponse<Document>> queryDocumentChangeFeed(String collectionLink,
+                                                         CosmosChangeFeedRequestOptions requestOptions);
 
     /**
      * Reads all partition key ranges in a document collection.

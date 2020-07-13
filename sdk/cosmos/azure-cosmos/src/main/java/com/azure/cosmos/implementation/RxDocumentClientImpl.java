@@ -9,6 +9,7 @@ import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.DirectConnectionConfig;
 import com.azure.cosmos.implementation.query.PipelinedDocumentQueryExecutionContext;
 import com.azure.cosmos.implementation.query.QueryInfo;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.models.FeedResponse;
@@ -1803,6 +1804,14 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
                 Document.class, collectionLink, changeFeedOptions);
 
         return changeFeedQueryImpl.executeAsync();
+    }
+
+    @Override
+    public Flux<FeedResponse<Document>> queryDocumentChangeFeed(final String collectionLink,
+                                                                final CosmosChangeFeedRequestOptions requestOptions) {
+
+        // TODO fabianm - Implement
+        return null;
     }
 
     @Override
