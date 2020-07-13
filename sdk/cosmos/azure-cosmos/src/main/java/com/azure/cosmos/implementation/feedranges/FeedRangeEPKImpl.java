@@ -30,7 +30,7 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
         final ArrayList<Range<String>> temp = new ArrayList<Range<String>>();
         temp.add(range);
 
-        this.rangeList = (UnmodifiableList<Range<String>>)Collections.unmodifiableList(temp);
+        this.rangeList = (UnmodifiableList<Range<String>>)UnmodifiableList.unmodifiableList(temp);
     }
 
     public Range<String> getRange() {
@@ -90,7 +90,7 @@ public final class FeedRangeEPKImpl extends FeedRangeInternal {
                          }
                      }
 
-                     return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
+                     return Mono.just((UnmodifiableList<String>)UnmodifiableList.unmodifiableList(rangeList));
                  });
     }
 

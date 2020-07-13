@@ -57,7 +57,7 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
         ArrayList<Range<String>> rangeList = new ArrayList<Range<String>>();
         rangeList.add(range);
 
-        return Mono.just((UnmodifiableList<Range<String>>)Collections.unmodifiableList(rangeList));
+        return Mono.just((UnmodifiableList<Range<String>>)UnmodifiableList.unmodifiableList(rangeList));
     }
 
     @Override
@@ -84,7 +84,7 @@ public final class FeedRangePartitionKeyImpl extends FeedRangeInternal {
                     rangeList.add(rangeId);
                 }
 
-                return Mono.just((UnmodifiableList<String>)Collections.unmodifiableList(rangeList));
+                return Mono.just((UnmodifiableList<String>)UnmodifiableList.unmodifiableList(rangeList));
             });
     }
 

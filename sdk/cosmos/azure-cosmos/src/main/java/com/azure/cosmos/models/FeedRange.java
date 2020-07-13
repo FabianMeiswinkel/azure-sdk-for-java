@@ -8,8 +8,8 @@ public interface FeedRange {
     /**
      * Creates a range from a previously obtained string representation.
      *
-     * @param json A string representation obtained from {@link json}
-     * @return A {@link FeedRange}
+     * @param json A string representation of a feed range
+     * @return A feed range
      */
     public static FeedRange fromJsonString(String json) {
         FeedRange parsedRange = null;

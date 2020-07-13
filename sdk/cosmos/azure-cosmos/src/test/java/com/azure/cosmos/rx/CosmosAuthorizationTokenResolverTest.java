@@ -6,12 +6,13 @@ package com.azure.cosmos.rx;
 import com.azure.cosmos.BridgeInternal;
 import com.azure.cosmos.DirectConnectionConfig;
 import com.azure.cosmos.GatewayConnectionConfig;
-import com.azure.cosmos.implementation.ChangeFeedOptions;
 import com.azure.cosmos.ConnectionMode;
 import com.azure.cosmos.implementation.ConnectionPolicy;
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.implementation.CosmosResourceType;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
+import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.models.FeedResponse;
 import com.azure.cosmos.models.ModelBridgeInternal;
 import com.azure.cosmos.models.PartitionKey;
@@ -35,6 +36,8 @@ import com.azure.cosmos.implementation.StoredProcedureResponse;
 import com.azure.cosmos.implementation.TestConfigurations;
 import com.azure.cosmos.implementation.TestSuiteBase;
 import com.azure.cosmos.implementation.User;
+import com.azure.cosmos.implementation.feedranges.FeedRangePartitionKeyImpl;
+
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -401,9 +404,10 @@ public class CosmosAuthorizationTokenResolverTest extends TestSuiteBase {
             expectedIds.add(rid1);
             expectedIds.add(rid2);
 
-            ChangeFeedOptions options = new ChangeFeedOptions();
-            options.setPartitionKey(new PartitionKey(partitionKeyValue));
-            options.setStartDateTime(befTime);
+            FeedRange feedRange = new FeedRangePartitionKeyImpl(
+                ModelBridgeInternal.getPartitionKeyInternal(new PartitionKey(partitionKeyValue)));
+            CosmosChangeFeedRequestOptions options =
+                CosmosChangeFeedRequestOptions.createForProcessingFromPointInTime(befTime, feedRange);
 
             Thread.sleep(1000);
             Flux<FeedResponse<Document>> queryObservable = asyncClientWithTokenResolver
