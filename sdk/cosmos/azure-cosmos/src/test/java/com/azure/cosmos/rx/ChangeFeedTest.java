@@ -3,8 +3,10 @@
 package com.azure.cosmos.rx;
 
 import com.azure.cosmos.BridgeInternal;
-import com.azure.cosmos.implementation.ChangeFeedOptions;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
+import com.azure.cosmos.models.FeedRange;
 import com.azure.cosmos.models.FeedResponse;
+import com.azure.cosmos.models.ModelBridgeInternal;
 import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.PartitionKeyDefinition;
 import com.azure.cosmos.implementation.Resource;
@@ -17,8 +19,12 @@ import com.azure.cosmos.implementation.RequestOptions;
 import com.azure.cosmos.implementation.ResourceResponse;
 import com.azure.cosmos.implementation.TestSuiteBase;
 import com.azure.cosmos.implementation.TestUtils;
+import com.azure.cosmos.implementation.feedranges.FeedRangePartitionKeyImpl;
+import com.azure.cosmos.implementation.feedranges.FeedRangePartitionKeyRangeImpl;
 import com.azure.cosmos.implementation.guava25.collect.ArrayListMultimap;
 import com.azure.cosmos.implementation.guava25.collect.Multimap;
+import com.azure.cosmos.implementation.routing.PartitionKeyInternal;
+
 import org.testng.SkipException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -76,10 +82,12 @@ public class ChangeFeedTest extends TestSuiteBase {
         String partitionKey = partitionKeyToDocuments.keySet().iterator().next();
         Collection<Document> expectedDocuments = partitionKeyToDocuments.get(partitionKey);
 
-        ChangeFeedOptions changeFeedOption = new ChangeFeedOptions();
+
+        FeedRange feedRange = new FeedRangePartitionKeyImpl(
+            ModelBridgeInternal.getPartitionKeyInternal(new PartitionKey(partitionKey)));
+        CosmosChangeFeedRequestOptions changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromBeginning(feedRange);
         changeFeedOption.setMaxItemCount(3);
-        changeFeedOption.setPartitionKey(new PartitionKey(partitionKey));
-        changeFeedOption.setStartFromBeginning(true);
 
         List<FeedResponse<Document>> changeFeedResultList = client.queryDocumentChangeFeed(getCollectionLink(), changeFeedOption)
                 .collectList().block();
@@ -109,10 +117,10 @@ public class ChangeFeedTest extends TestSuiteBase {
 
         String pkRangeId = partitionKeyRangeIds.get(0);
 
-        ChangeFeedOptions changeFeedOption = new ChangeFeedOptions();
+        FeedRange feedRange = new FeedRangePartitionKeyRangeImpl(pkRangeId);
+        CosmosChangeFeedRequestOptions changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromBeginning(feedRange);
         changeFeedOption.setMaxItemCount(3);
-        changeFeedOption.setPartitionKeyRangeId(pkRangeId);
-        changeFeedOption.setStartFromBeginning(true);
         List<FeedResponse<Document>> changeFeedResultList = client.queryDocumentChangeFeed(getCollectionLink(), changeFeedOption)
                 .collectList().block();
 
@@ -137,9 +145,11 @@ public class ChangeFeedTest extends TestSuiteBase {
     @Test(groups = { "simple" }, timeOut = TIMEOUT)
     public void changeFeed_fromNow() throws Exception {
         // READ change feed from current.
-        ChangeFeedOptions changeFeedOption = new ChangeFeedOptions();
         String partitionKey = partitionKeyToDocuments.keySet().iterator().next();
-        changeFeedOption.setPartitionKey(new PartitionKey(partitionKey));
+        FeedRange feedRange = new FeedRangePartitionKeyImpl(
+            ModelBridgeInternal.getPartitionKeyInternal(new PartitionKey(partitionKey)));
+        CosmosChangeFeedRequestOptions changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromNow(feedRange);
 
         List<FeedResponse<Document>> changeFeedResultsList = client.queryDocumentChangeFeed(getCollectionLink(), changeFeedOption)
                 .collectList()
@@ -160,16 +170,19 @@ public class ChangeFeedTest extends TestSuiteBase {
         }
 
         // READ change feed from current.
-        ChangeFeedOptions changeFeedOption = new ChangeFeedOptions();
         String partitionKey = partitionKeyToDocuments.keySet().iterator().next();
+        FeedRange feedRange = new FeedRangePartitionKeyImpl(
+            ModelBridgeInternal.getPartitionKeyInternal(new PartitionKey(partitionKey)));
+        CosmosChangeFeedRequestOptions changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromNow(feedRange);
 
-        changeFeedOption.setPartitionKey(new PartitionKey(partitionKey));
         Instant befTime = Instant.now();
         // Waiting for at-least a second to ensure that new document is created after we took the time stamp
         waitAtleastASecond(befTime);
 
         Instant dateTimeBeforeCreatingDoc = Instant.now();
-        changeFeedOption.setStartDateTime(dateTimeBeforeCreatingDoc);
+        changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromPointInTime(dateTimeBeforeCreatingDoc, feedRange);
 
         // Waiting for at-least a second to ensure that new document is created after we took the time stamp
         waitAtleastASecond(dateTimeBeforeCreatingDoc);
@@ -189,10 +202,12 @@ public class ChangeFeedTest extends TestSuiteBase {
 
     @Test(groups = { "simple" }, timeOut = TIMEOUT)
     public void changesFromPartitionKey_AfterInsertingNewDocuments() throws Exception {
-        ChangeFeedOptions changeFeedOption = new ChangeFeedOptions();
-        changeFeedOption.setMaxItemCount(3);
         String partitionKey = partitionKeyToDocuments.keySet().iterator().next();
-        changeFeedOption.setPartitionKey(new PartitionKey(partitionKey));
+        FeedRange feedRange = new FeedRangePartitionKeyImpl(
+            ModelBridgeInternal.getPartitionKeyInternal(new PartitionKey(partitionKey)));
+        CosmosChangeFeedRequestOptions changeFeedOption =
+            CosmosChangeFeedRequestOptions.createForProcessingFromNow(feedRange);
+        changeFeedOption.setMaxItemCount(3);
 
         List<FeedResponse<Document>> changeFeedResultsList = client.queryDocumentChangeFeed(getCollectionLink(), changeFeedOption)
                 .collectList().block();

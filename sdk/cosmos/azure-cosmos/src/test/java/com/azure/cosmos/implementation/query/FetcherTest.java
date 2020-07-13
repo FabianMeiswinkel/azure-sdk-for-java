@@ -3,11 +3,13 @@
 
 package com.azure.cosmos.implementation.query;
 
-import com.azure.cosmos.implementation.ChangeFeedOptions;
+import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.FeedResponse;
 import com.azure.cosmos.implementation.Document;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
+import com.azure.cosmos.implementation.feedranges.FeedRangeEPKImpl;
+import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
 import com.azure.cosmos.models.ModelBridgeInternal;
 import io.reactivex.subscribers.TestSubscriber;
 import org.testng.annotations.DataProvider;
@@ -123,7 +125,9 @@ public class FetcherTest {
     @Test(groups = { "unit" })
     public void changeFeed() {
 
-        ChangeFeedOptions options = new ChangeFeedOptions();
+        CosmosChangeFeedRequestOptions options =
+            CosmosChangeFeedRequestOptions.createForProcessingFromBeginning(
+                FeedRangeEPKImpl.ForFullRange());
         options.setMaxItemCount(100);
 
         boolean isChangeFeed = true;
@@ -141,12 +145,8 @@ public class FetcherTest {
 
         List<FeedResponse<Document>> feedResponseList = Arrays.asList(fp1, fp2);
 
-        AtomicInteger requestIndex = new AtomicInteger(0);
-
         BiFunction<String, Integer, RxDocumentServiceRequest> createRequestFunc = (token, maxItemCount) -> {
             assertThat(maxItemCount).describedAs("max getItem count").isEqualTo(options.getMaxItemCount());
-            assertThat(token).describedAs("continuation token").isEqualTo(
-                    getExpectedContinuationTokenInRequest(options.getRequestContinuation(), feedResponseList, requestIndex.getAndIncrement()));
 
             return mock(RxDocumentServiceRequest.class);
         };
@@ -158,16 +158,15 @@ public class FetcherTest {
         };
 
         Fetcher<Document> fetcher =
-                new Fetcher<>(createRequestFunc, executeFunc, options.getRequestContinuation(), isChangeFeed, top,
+                new Fetcher<>(createRequestFunc, executeFunc, null, isChangeFeed, top,
                         options.getMaxItemCount());
 
         validateFetcher(fetcher, options, feedResponseList);
     }
 
     private void validateFetcher(Fetcher<Document> fetcher,
-                                 ChangeFeedOptions options,
+                                 CosmosChangeFeedRequestOptions options,
                                  List<FeedResponse<Document>> feedResponseList) {
-
 
         for(FeedResponse<Document> change: feedResponseList) {
             assertThat(fetcher.shouldFetchMore()).describedAs("should fetch more pages").isTrue();

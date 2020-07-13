@@ -34,7 +34,7 @@ public class ClientRetryPolicyTest {
         clientRetryPolicy.onBeforeSendRequest(dsr);
 
         for (int i = 0; i < 10; i++) {
-            Mono<IRetryPolicy.ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
+            Mono<ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
 
             validateSuccess(shouldRetry, ShouldRetryValidator.builder()
                     .nullException()
@@ -63,7 +63,7 @@ public class ClientRetryPolicyTest {
 
         clientRetryPolicy.onBeforeSendRequest(dsr);
         for (int i = 0; i < 10; i++) {
-            Mono<IRetryPolicy.ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
+            Mono<ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
             validateSuccess(shouldRetry, ShouldRetryValidator.builder()
                     .nullException()
                     .shouldRetry(false)
@@ -90,7 +90,7 @@ public class ClientRetryPolicyTest {
 
         clientRetryPolicy.onBeforeSendRequest(dsr);
         for (int i = 0; i < 10; i++) {
-            Mono<IRetryPolicy.ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
+            Mono<ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
             validateSuccess(shouldRetry, ShouldRetryValidator.builder()
                                                              .nullException()
                                                              .shouldRetry(false)
@@ -117,7 +117,7 @@ public class ClientRetryPolicyTest {
 
         clientRetryPolicy.onBeforeSendRequest(dsr);
         for (int i = 0; i < 10; i++) {
-            Mono<IRetryPolicy.ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
+            Mono<ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
             validateSuccess(shouldRetry, ShouldRetryValidator.builder()
                                                              .nullException()
                                                              .shouldRetry(false)
@@ -142,7 +142,7 @@ public class ClientRetryPolicyTest {
                 OperationType.Create, "/dbs/db/colls/col/docs/docId", ResourceType.Document);
         dsr.requestContext = Mockito.mock(DocumentServiceRequestContext.class);
 
-        Mono<IRetryPolicy.ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
+        Mono<ShouldRetryResult> shouldRetry = clientRetryPolicy.shouldRetry(exception);
         validateSuccess(shouldRetry, ShouldRetryValidator.builder()
                 .withException(exception)
                 .shouldRetry(false)
@@ -151,16 +151,16 @@ public class ClientRetryPolicyTest {
         Mockito.verifyZeroInteractions(endpointManager);
     }
 
-    public static void validateSuccess(Mono<IRetryPolicy.ShouldRetryResult> single,
+    public static void validateSuccess(Mono<ShouldRetryResult> single,
                                        ShouldRetryValidator validator) {
 
         validateSuccess(single, validator, TIMEOUT);
     }
 
-    public static void validateSuccess(Mono<IRetryPolicy.ShouldRetryResult> single,
+    public static void validateSuccess(Mono<ShouldRetryResult> single,
                                        ShouldRetryValidator validator,
                                        long timeout) {
-        TestSubscriber<IRetryPolicy.ShouldRetryResult> testSubscriber = new TestSubscriber<>();
+        TestSubscriber<ShouldRetryResult> testSubscriber = new TestSubscriber<>();
 
         single.flux().subscribe(testSubscriber);
         testSubscriber.awaitTerminalEvent(timeout, TimeUnit.MILLISECONDS);

@@ -94,7 +94,7 @@ public final class FeedRangePartitionKeyRangeExtractorImpl
         });
 
         final UnmodifiableList<Range<String>> feedRangesResult =
-            (UnmodifiableList<Range<String>>)Collections.unmodifiableList(feedRanges);
+            (UnmodifiableList<Range<String>>)UnmodifiableList.unmodifiableList(feedRanges);
 
         return feedRangesResult;
     }
