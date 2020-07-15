@@ -1,9 +1,11 @@
 package com.azure.cosmos.models;
 
 import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
+import com.azure.cosmos.util.Beta;
 
 import java.io.IOException;
 
+@Beta(Beta.SinceVersion.V4_3_0)
 public interface FeedRange {
     /**
      * Creates a range from a previously obtained string representation.
