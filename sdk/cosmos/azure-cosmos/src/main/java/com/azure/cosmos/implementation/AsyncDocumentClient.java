@@ -648,7 +648,7 @@ public interface AsyncDocumentClient {
      * @return a {@link UnmodifiableList} of @{link FeedRange} containing the feed
      *         ranges of a container.
      */
-    Mono<UnmodifiableList<FeedRange>> getFeedRanges(String collectionLink);
+    Mono<List<FeedRange>> getFeedRanges(String collectionLink);
 
     /**
      * Creates a stored procedure.

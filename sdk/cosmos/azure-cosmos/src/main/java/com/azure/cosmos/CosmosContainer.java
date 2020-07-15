@@ -3,8 +3,10 @@
 
 package com.azure.cosmos;
 
-import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
+import java.util.List;
+
 import com.azure.cosmos.models.*;
+import com.azure.cosmos.util.Beta;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.CosmosPagedIterable;
 import com.azure.cosmos.util.UtilBridgeInternal;
@@ -341,7 +343,8 @@ public class CosmosContainer {
      * 
      * @return An unmodifiable list of {@link FeedRange}
      */
-    public UnmodifiableList<FeedRange> getFeedRanges() {
+    @Beta(Beta.SinceVersion.V4_3_0)
+    public List<FeedRange> getFeedRanges() {
         try {
             return asyncContainer.getFeedRanges().block();
         } catch (Exception ex) {

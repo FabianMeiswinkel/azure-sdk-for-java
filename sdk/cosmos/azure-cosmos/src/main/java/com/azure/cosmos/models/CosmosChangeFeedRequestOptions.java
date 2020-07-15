@@ -6,10 +6,12 @@ import com.azure.cosmos.implementation.changefeed.implementation.ChangeFeedReque
 import com.azure.cosmos.implementation.changefeed.implementation.ChangeFeedStartFromInternal;
 import com.azure.cosmos.implementation.feedranges.FeedRangeContinuation;
 import com.azure.cosmos.implementation.feedranges.FeedRangeInternal;
+import com.azure.cosmos.util.Beta;
 
 import java.time.Instant;
 import java.util.Map;
 
+@Beta(Beta.SinceVersion.V4_3_0)
 public final class CosmosChangeFeedRequestOptions {
     private static final Integer DEFAULT_MAX_ITEM_COUNT = 1000;
     private FeedRangeInternal feedRangeInternal;

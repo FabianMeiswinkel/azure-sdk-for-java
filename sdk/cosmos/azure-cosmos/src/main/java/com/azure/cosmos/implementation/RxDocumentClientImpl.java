@@ -3201,7 +3201,7 @@ public class RxDocumentClientImpl implements AsyncDocumentClient, IAuthorization
     }
 
     @Override
-    public Mono<UnmodifiableList<FeedRange>> getFeedRanges(String collectionLink) {
+    public Mono<List<FeedRange>> getFeedRanges(String collectionLink) {
         RxDocumentServiceRequest request = RxDocumentServiceRequest.create(OperationType.Query, ResourceType.Document,
                 collectionLink, null); // This should not got to backend
         Mono<Utils.ValueHolder<DocumentCollection>> collectionObs = collectionCache.resolveCollectionAsync(null,

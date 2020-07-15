@@ -26,6 +26,7 @@ import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.SqlQuerySpec;
 import com.azure.cosmos.models.ThroughputProperties;
 import com.azure.cosmos.models.ThroughputResponse;
+import com.azure.cosmos.util.Beta;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.UtilBridgeInternal;
 import reactor.core.publisher.Flux;
@@ -706,7 +707,8 @@ public class CosmosAsyncContainer {
      *
      * @return An unmodifiable list of {@link FeedRange}
      */
-    public Mono<UnmodifiableList<FeedRange>> getFeedRanges() {
+    @Beta(Beta.SinceVersion.V4_3_0)
+    public Mono<List<FeedRange>> getFeedRanges() {
         return this.getDatabase().getDocClientWrapper().getFeedRanges(getLink());
     }
 
