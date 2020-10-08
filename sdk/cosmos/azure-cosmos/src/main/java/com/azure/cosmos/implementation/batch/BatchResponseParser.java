@@ -4,6 +4,7 @@
 package com.azure.cosmos.implementation.batch;
 
 import com.azure.cosmos.BridgeInternal;
+import com.azure.cosmos.CosmosItemOperation;
 import com.azure.cosmos.TransactionalBatchOperationResult;
 import com.azure.cosmos.TransactionalBatchResponse;
 import com.azure.cosmos.implementation.HttpConstants;
@@ -18,8 +19,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkState;
 
@@ -103,7 +105,8 @@ public final class BatchResponseParser {
         final ServerBatchRequest request,
         final boolean shouldPromoteOperationStatus) {
 
-        final ArrayList<TransactionalBatchOperationResult> results = new ArrayList<>(request.getOperations().size());
+        final Map<CosmosItemOperation, TransactionalBatchOperationResult> results =
+            new HashMap<>(request.getOperations().size());
         final byte[] responseContent = documentServiceResponse.getResponseBodyAsByteArray();
 
         if (responseContent[0] != (byte)HYBRID_V1) {
@@ -112,9 +115,12 @@ public final class BatchResponseParser {
 
             try {
                 final ObjectNode[] objectNodes = mapper.readValue(responseContent, ObjectNode[].class);
+                int i = 0;
+                List<ItemBatchOperation<?>> operations = request.getOperations();
                 for (ObjectNode objectInArray : objectNodes) {
                     final TransactionalBatchOperationResult batchOperationResult = BatchResponseParser.createBatchOperationResultFromJson(objectInArray);
-                    results.add(batchOperationResult);
+                    results.put(operations.get(i), batchOperationResult);
+                    i++;
                 }
             } catch (IOException ex) {
                 logger.error("Exception in parsing response", ex);
@@ -132,7 +138,7 @@ public final class BatchResponseParser {
 
         // Status code of the exact operation which failed.
         if (responseStatusCode == HttpResponseStatus.MULTI_STATUS.code() && shouldPromoteOperationStatus) {
-            for (TransactionalBatchOperationResult result : results) {
+            for (TransactionalBatchOperationResult result : results.values()) {
                 if (result.getStatusCode() !=  HttpResponseStatus.FAILED_DEPENDENCY.code() &&
                     result.getStatusCode() >= 400) {
                     responseStatusCode = result.getStatusCode();
@@ -200,9 +206,10 @@ public final class BatchResponseParser {
     private static void createAndPopulateResults(final TransactionalBatchResponse response,
                                                  final List<ItemBatchOperation<?>> operations,
                                                  final Duration retryAfterDuration) {
-        final List<TransactionalBatchOperationResult> results = new ArrayList<>(operations.size());
-        for (int i = 0; i < operations.size(); i++) {
-            results.add(
+        final Map<CosmosItemOperation, TransactionalBatchOperationResult> results = new HashMap<>(operations.size());
+        for (ItemBatchOperation<?> operation : operations) {
+            results.put(
+                operation,
                 BridgeInternal.createTransactionBatchResult(
                     null,
                     response.getRequestCharge(),

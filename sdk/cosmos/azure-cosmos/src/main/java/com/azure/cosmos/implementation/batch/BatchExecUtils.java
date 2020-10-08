@@ -87,7 +87,7 @@ public final class BatchExecUtils {
         }
 
         try {
-            return Double.valueOf(value);
+            return Double.parseDouble(value);
         } catch (NumberFormatException e) {
             logger.warn("INVALID x-ms-request-charge value {}.", value);
             return 0;

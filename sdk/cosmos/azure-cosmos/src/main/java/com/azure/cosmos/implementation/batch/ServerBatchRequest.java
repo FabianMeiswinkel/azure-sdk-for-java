@@ -76,8 +76,7 @@ public abstract class ServerBatchRequest {
 
         this.requestBody = arrayNode.toString();
         this.operations = operations.subList(0, totalOperationCount);
-        List<ItemBatchOperation<?>> pendingOperations = operations.subList(totalOperationCount, operations.size());
-        return pendingOperations;
+        return operations.subList(totalOperationCount, operations.size());
     }
 
     public final String getRequestBody() {

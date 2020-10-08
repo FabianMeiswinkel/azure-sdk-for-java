@@ -29,6 +29,7 @@ public final class TransactionalBatchRequestOptions {
      * @param consistencyLevel the consistency level.
      * @return the TransactionalBatchRequestOptions.
      */
+    // TODO fabianm - I assume this exsists to allow downgrading request-level consistency level for read-only batches ?
     TransactionalBatchRequestOptions setConsistencyLevel(ConsistencyLevel consistencyLevel) {
         this.consistencyLevel = consistencyLevel;
         return this;

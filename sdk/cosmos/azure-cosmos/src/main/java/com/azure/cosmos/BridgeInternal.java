@@ -662,7 +662,7 @@ public final class BridgeInternal {
     @Warning(value = INTERNAL_USE_ONLY_WARNING)
     public static void addTransactionBatchResultInResponse(
         TransactionalBatchResponse transactionalBatchResponse,
-        List<TransactionalBatchOperationResult> transactionalBatchOperationResult) {
+        Map<CosmosItemOperation, TransactionalBatchOperationResult> transactionalBatchOperationResult) {
 
         transactionalBatchResponse.addAll(transactionalBatchOperationResult);
     }

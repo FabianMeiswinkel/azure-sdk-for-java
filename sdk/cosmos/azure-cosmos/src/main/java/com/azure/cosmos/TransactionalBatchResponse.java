@@ -8,7 +8,7 @@ import com.azure.cosmos.util.Beta;
 
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +23,7 @@ public class TransactionalBatchResponse {
     private final Map<String, String> responseHeaders;
     private final int statusCode;
     private final String errorMessage;
-    private final List<TransactionalBatchOperationResult> results;
+    private final Map<CosmosItemOperation, TransactionalBatchOperationResult> results;
     private final int subStatusCode;
     private final CosmosDiagnostics cosmosDiagnostics;
 
@@ -51,7 +51,7 @@ public class TransactionalBatchResponse {
         this.errorMessage = errorMessage;
         this.responseHeaders = responseHeaders;
         this.cosmosDiagnostics = cosmosDiagnostics;
-        this.results = new ArrayList<>();
+        this.results = new HashMap<>();
     }
 
     /**
@@ -162,18 +162,18 @@ public class TransactionalBatchResponse {
      * @return Results of operation in batch.
      */
     public List<TransactionalBatchOperationResult> getResults() {
-        return this.results;
+        return new ArrayList<>(this.results.values());
     }
 
     /**
      * Gets the result of the operation at the provided index in the batch.
      *
-     * @param index 0-based index of the operation in the batch whose result needs to be returned.
+     * @param operation the operation in the batch whose result needs to be returned.
      *
-     * @return Result of operation at the provided index in the batch.
+     * @return Result of the operation.
      */
-    public TransactionalBatchOperationResult get(int index) {
-        return this.results.get(index);
+    public TransactionalBatchOperationResult getResult(CosmosItemOperation operation) {
+        return this.results.get(operation);
     }
 
     /**
@@ -189,7 +189,7 @@ public class TransactionalBatchResponse {
         return this.cosmosDiagnostics.getDuration();
     }
 
-    boolean addAll(Collection<? extends TransactionalBatchOperationResult> collection) {
-        return this.results.addAll(collection);
+    void addAll(Map<? extends CosmosItemOperation, ? extends TransactionalBatchOperationResult> collection) {
+        this.results.putAll(collection);
     }
 }

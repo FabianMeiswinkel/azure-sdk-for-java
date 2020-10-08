@@ -117,7 +117,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch createItem(T item) {
+    public <T> CosmosItemOperation createItem(T item) {
         checkNotNull(item, "expected non-null item");
         return this.createItem(item, new TransactionalBatchItemRequestOptions());
     }
@@ -132,22 +132,21 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch createItem(T item, TransactionalBatchItemRequestOptions requestOptions) {
+    public <T> CosmosItemOperation createItem(T item, TransactionalBatchItemRequestOptions requestOptions) {
 
         checkNotNull(item, "expected non-null item");
         if (requestOptions == null) {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        this.operations.add(
-            new ItemBatchOperation.Builder<T>(
-                OperationType.Create,
-                this.operations.size())
-                .requestOptions(requestOptions.toRequestOptions())
-                .resource(item)
-                .build());
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Create)
+            .requestOptions(requestOptions.toRequestOptions())
+            .resource(item)
+            .build();
 
-        return this;
+        this.operations.add(operation);
+
+        return operation;
     }
 
     /**
@@ -157,7 +156,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public TransactionalBatch deleteItem(String id) {
+    public CosmosItemOperation deleteItem(String id) {
         checkNotNull(id, "expected non-null id");
         return this.deleteItem(id, new TransactionalBatchItemRequestOptions());
     }
@@ -170,19 +169,22 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public TransactionalBatch deleteItem(String id, TransactionalBatchItemRequestOptions requestOptions) {
+    public CosmosItemOperation deleteItem(String id, TransactionalBatchItemRequestOptions requestOptions) {
 
         checkNotNull(id, "expected non-null id");
         if (requestOptions == null) {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        this.operations.add(new ItemBatchOperation.Builder<Void>(OperationType.Delete, this.operations.size())
+        ItemBatchOperation<Void> operation =
+            new ItemBatchOperation.Builder<Void>(OperationType.Delete)
             .requestOptions(requestOptions.toRequestOptions())
             .id(id)
-            .build());
+            .build();
 
-        return this;
+        this.operations.add(operation);
+
+        return operation;
     }
 
     /**
@@ -192,7 +194,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public TransactionalBatch readItem(String id) {
+    public CosmosItemOperation readItem(String id) {
         checkNotNull(id, "expected non-null id");
         return this.readItem(id, new TransactionalBatchItemRequestOptions());
     }
@@ -205,19 +207,21 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public TransactionalBatch readItem(String id, TransactionalBatchItemRequestOptions requestOptions) {
+    public CosmosItemOperation readItem(String id, TransactionalBatchItemRequestOptions requestOptions) {
 
         checkNotNull(id, "expected non-null id");
         if (requestOptions == null) {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        this.operations.add(new ItemBatchOperation.Builder<Void>(OperationType.Read, this.operations.size())
+        ItemBatchOperation<Void> operation =
+            new ItemBatchOperation.Builder<Void>(OperationType.Read)
             .requestOptions(requestOptions.toRequestOptions())
             .id(id)
-            .build());
+            .build();
+        this.operations.add(operation);
 
-        return this;
+        return operation;
     }
 
     /**
@@ -229,7 +233,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch replaceItem(String id, T item) {
+    public <T> CosmosItemOperation replaceItem(String id, T item) {
         checkNotNull(id, "expected non-null id");
         checkNotNull(item, "expected non-null item");
         return this.replaceItem(id, item, new TransactionalBatchItemRequestOptions());
@@ -246,7 +250,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch replaceItem(
+    public <T> CosmosItemOperation replaceItem(
         String id, T item, TransactionalBatchItemRequestOptions requestOptions) {
 
         checkNotNull(id, "expected non-null id");
@@ -255,13 +259,14 @@ public final class TransactionalBatch {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        this.operations.add(new ItemBatchOperation.Builder<T>(OperationType.Replace, this.operations.size())
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Replace)
             .requestOptions(requestOptions.toRequestOptions())
             .resource(item)
             .id(id)
-            .build());
+            .build();
+        this.operations.add(operation);
 
-        return this;
+        return operation;
     }
 
     /**
@@ -272,7 +277,7 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch upsertItem(T item) {
+    public <T> CosmosItemOperation upsertItem(T item) {
         checkNotNull(item, "expected non-null item");
         return this.upsertItem(item, new TransactionalBatchItemRequestOptions());
     }
@@ -287,27 +292,28 @@ public final class TransactionalBatch {
      *
      * @return The transactional batch instance with the operation added.
      */
-    public <T> TransactionalBatch upsertItem(T item, TransactionalBatchItemRequestOptions requestOptions) {
+    public <T> CosmosItemOperation upsertItem(T item, TransactionalBatchItemRequestOptions requestOptions) {
 
         checkNotNull(item, "expected non-null item");
         if (requestOptions == null) {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        this.operations.add(new ItemBatchOperation.Builder<T>(OperationType.Upsert, this.operations.size())
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Upsert)
             .requestOptions(requestOptions.toRequestOptions())
             .resource(item)
-            .build());
+            .build();
+        this.operations.add(operation);
 
-        return this;
+        return operation;
     }
 
     /**
-     * Return the list of operation in an unmodifiable instace so no one can change it in the down path.
+     * Return the list of operation in an unmodifiable instance so no one can change it in the down path.
      *
      * @return The list of operations which are to be executed.
      */
-    List<ItemBatchOperation<?>> getOperations() {
+    public List<ItemBatchOperation<?>> getOperations() {
         return UnmodifiableList.unmodifiableList(operations);
     }
 
@@ -316,7 +322,7 @@ public final class TransactionalBatch {
      *
      * @return The partition key for this batch.
      */
-    PartitionKey getPartitionKey() {
+    public PartitionKey getPartitionKey() {
         return partitionKey;
     }
 }

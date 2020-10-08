@@ -34,7 +34,7 @@ public class TransactionalBatchResponseTests {
         List<TransactionalBatchOperationResult> results = new ArrayList<>();
         ItemBatchOperation<?>[] arrayOperations = new ItemBatchOperation<?>[1];
 
-        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read,0)
+        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read)
             .partitionKey(PartitionKey.NONE)
             .id("0")
             .build();
@@ -86,11 +86,10 @@ public class TransactionalBatchResponseTests {
         assertThat(batchResponse.getSubStatusCode()).isEqualTo(HttpConstants.SubStatusCodes.PARTITION_KEY_RANGE_GONE);
 
         // Validate result fields
-        assertThat(batchResponse.get(0).getETag()).isEqualTo(operation.getId());
-        assertThat(batchResponse.get(0).getRequestCharge()).isEqualTo(5.0);
-        assertThat(batchResponse.get(0).getRetryAfterDuration()).isEqualTo(Duration.ofMillis(100));
-        assertThat(batchResponse.get(0).getSubStatusCode()).isEqualTo(HttpConstants.SubStatusCodes.PARTITION_KEY_MISMATCH);
-        assertThat(batchResponse.get(0).getStatusCode()).isEqualTo(HttpResponseStatus.NOT_MODIFIED.code());
+        assertThat(batchResponse.getResults().get(0).getRequestCharge()).isEqualTo(5.0);
+        assertThat(batchResponse.getResults().get(0).getRetryAfterDuration()).isEqualTo(Duration.ofMillis(100));
+        assertThat(batchResponse.getResults().get(0).getSubStatusCode()).isEqualTo(HttpConstants.SubStatusCodes.PARTITION_KEY_MISMATCH);
+        assertThat(batchResponse.getResults().get(0).getStatusCode()).isEqualTo(HttpResponseStatus.NOT_MODIFIED.code());
     }
 
     @Test(groups = {"unit"}, timeOut = TIMEOUT)
@@ -98,7 +97,7 @@ public class TransactionalBatchResponseTests {
         List<TransactionalBatchOperationResult> results = new ArrayList<>();
         ItemBatchOperation<?>[] arrayOperations = new ItemBatchOperation<?>[1];
 
-        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read,0)
+        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read)
             .partitionKey(PartitionKey.NONE)
             .id("0")
             .build();
@@ -141,10 +140,10 @@ public class TransactionalBatchResponseTests {
         assertThat(batchResponse.getSubStatusCode()).isEqualTo(0);
 
         // Validate result fields
-        assertThat(batchResponse.get(0).getETag()).isNull();
-        assertThat(batchResponse.get(0).getRequestCharge()).isEqualTo(5.0);
-        assertThat(batchResponse.get(0).getRetryAfterDuration()).isEqualTo(Duration.ZERO);
-        assertThat(batchResponse.get(0).getSubStatusCode()).isEqualTo(0);
-        assertThat(batchResponse.get(0).getStatusCode()).isEqualTo(HttpResponseStatus.NOT_MODIFIED.code());
+        assertThat(batchResponse.getResults().get(0).getETag()).isNull();
+        assertThat(batchResponse.getResults().get(0).getRequestCharge()).isEqualTo(5.0);
+        assertThat(batchResponse.getResults().get(0).getRetryAfterDuration()).isEqualTo(Duration.ZERO);
+        assertThat(batchResponse.getResults().get(0).getSubStatusCode()).isEqualTo(0);
+        assertThat(batchResponse.getResults().get(0).getStatusCode()).isEqualTo(HttpResponseStatus.NOT_MODIFIED.code());
     }
 }

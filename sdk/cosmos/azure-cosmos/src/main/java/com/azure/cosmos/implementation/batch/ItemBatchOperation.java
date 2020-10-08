@@ -3,24 +3,23 @@
 
 package com.azure.cosmos.implementation.batch;
 
+import com.azure.cosmos.CosmosItemOperation;
 import com.azure.cosmos.implementation.JsonSerializable;
 import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.RequestOptions;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import com.azure.cosmos.models.PartitionKey;
 
-import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
 /**
  * Represents an operation on an item which will be executed as part of a batch request on a container.
  */
-public final class ItemBatchOperation<TResource> {
+public final class ItemBatchOperation<TResourceInternal> implements CosmosItemOperation {
 
-    private TResource resource;
+    private final TResourceInternal resource;
 
     private final String id;
-    private final int operationIndex;
     private final PartitionKey partitionKey;
     private String partitionKeyJson;
     private final OperationType operationType;
@@ -28,17 +27,14 @@ public final class ItemBatchOperation<TResource> {
 
     private ItemBatchOperation(
         final OperationType operationType,
-        final int operationIndex,
         final PartitionKey partitionKey,
         final String id,
-        final TResource resource,
+        final TResourceInternal resource,
         final RequestOptions requestOptions) {
 
-        checkArgument(operationIndex >= 0, "expected operationIndex >= 0, not %s", operationIndex);
         checkNotNull(operationType, "expected non-null operationType");
 
         this.operationType = operationType;
-        this.operationIndex = operationIndex;
         this.partitionKey = partitionKey;
         this.id = id;
         this.resource = resource;
@@ -50,7 +46,9 @@ public final class ItemBatchOperation<TResource> {
     static JsonSerializable writeOperation(final ItemBatchOperation<?> operation) {
         final JsonSerializable jsonSerializable = new JsonSerializable();
 
-        jsonSerializable.set(BatchRequestResponseConstant.FIELD_OPERATION_TYPE, BatchExecUtils.getStringOperationType(operation.getOperationType()));
+        jsonSerializable.set(
+            BatchRequestResponseConstant.FIELD_OPERATION_TYPE,
+            BatchExecUtils.getStringOperationType(operation.getOperationTypeInternal()));
 
         if (StringUtils.isNotEmpty(operation.getPartitionKeyJson())) {
             // Used for non transactional batch.
@@ -61,8 +59,8 @@ public final class ItemBatchOperation<TResource> {
             jsonSerializable.set(BatchRequestResponseConstant.FIELD_ID, operation.getId());
         }
 
-        if (operation.getResource() != null) {
-            jsonSerializable.set(BatchRequestResponseConstant.FIELD_RESOURCE_BODY, operation.getResource());
+        if (operation.getResourceInternal() != null) {
+            jsonSerializable.set(BatchRequestResponseConstant.FIELD_RESOURCE_BODY, operation.getResourceInternal());
         }
 
         if (operation.getRequestOptions() != null) {
@@ -80,11 +78,15 @@ public final class ItemBatchOperation<TResource> {
         return jsonSerializable;
     }
 
-    String getId() {
+    public String getId() {
         return this.id;
     }
 
-    OperationType getOperationType() {
+    public String getOperationType() {
+        return this.operationType.toString();
+    }
+
+    OperationType getOperationTypeInternal() {
         return this.operationType;
     }
 
@@ -92,11 +94,7 @@ public final class ItemBatchOperation<TResource> {
         return this.partitionKeyJson;
     }
 
-    int getOperationIndex() {
-        return operationIndex;
-    }
-
-    PartitionKey getPartitionKey() {
+    public PartitionKey getPartitionKeyValue() {
         return partitionKey;
     }
 
@@ -108,26 +106,28 @@ public final class ItemBatchOperation<TResource> {
         return this.requestOptions;
     }
 
-    TResource getResource() {
+    TResourceInternal getResourceInternal() {
         return this.resource;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <TResource> TResource getItem() {
+        return (TResource)this.resource;
     }
 
     public static final class Builder<TResource> {
 
         private final OperationType operationType;
-        private final int operationIndex;
         private String id;
         private PartitionKey partitionKey;
         private RequestOptions requestOptions;
         private TResource resource;
 
-        public Builder(final OperationType type, final int index) {
+        public Builder(final OperationType type) {
 
             checkNotNull(type, "expected non-null type");
-            checkArgument(index >= 0, "expected index >= 0, not %s", index);
 
             this.operationType = type;
-            this.operationIndex = index;
         }
 
         public Builder<TResource> id(String value) {
@@ -153,7 +153,6 @@ public final class ItemBatchOperation<TResource> {
         public ItemBatchOperation<TResource> build() {
             return new ItemBatchOperation<>(
                 this.operationType,
-                this.operationIndex,
                 this.partitionKey,
                 this.id,
                 this.resource,
