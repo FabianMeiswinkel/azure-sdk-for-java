@@ -7,7 +7,7 @@ public interface CosmosItemOperation {
 
     public PartitionKey getPartitionKeyValue();
 
-    public String getOperationType();
+    public CosmosItemOperationType getOperationType();
 
     public <T> T getItem();
 }

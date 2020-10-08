@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,8 +106,7 @@ public final class BatchResponseParser {
         final ServerBatchRequest request,
         final boolean shouldPromoteOperationStatus) {
 
-        final Map<CosmosItemOperation, TransactionalBatchOperationResult> results =
-            new HashMap<>(request.getOperations().size());
+        final List<TransactionalBatchOperationResult> results = new ArrayList<>(request.getOperations().size());
         final byte[] responseContent = documentServiceResponse.getResponseBodyAsByteArray();
 
         if (responseContent[0] != (byte)HYBRID_V1) {
@@ -118,9 +118,8 @@ public final class BatchResponseParser {
                 int i = 0;
                 List<ItemBatchOperation<?>> operations = request.getOperations();
                 for (ObjectNode objectInArray : objectNodes) {
-                    final TransactionalBatchOperationResult batchOperationResult = BatchResponseParser.createBatchOperationResultFromJson(objectInArray);
-                    results.put(operations.get(i), batchOperationResult);
-                    i++;
+                    results.add(
+                        BatchResponseParser.createBatchOperationResultFromJson(objectInArray, operations.get(i++)));
                 }
             } catch (IOException ex) {
                 logger.error("Exception in parsing response", ex);
@@ -169,7 +168,10 @@ public final class BatchResponseParser {
      *
      * @return the result
      */
-    private static TransactionalBatchOperationResult createBatchOperationResultFromJson(ObjectNode objectNode) {
+    private static TransactionalBatchOperationResult createBatchOperationResultFromJson(
+        ObjectNode objectNode,
+        CosmosItemOperation operation) {
+
         final JsonSerializable jsonSerializable = new JsonSerializable(objectNode);
 
         final int statusCode = jsonSerializable.getInt(BatchRequestResponseConstant.FIELD_STATUS_CODE);
@@ -193,7 +195,8 @@ public final class BatchResponseParser {
             resourceBody,
             statusCode,
             retryAfterMilliseconds != null ? Duration.ofMillis(retryAfterMilliseconds) : Duration.ZERO,
-            subStatusCode);
+            subStatusCode,
+            operation);
     }
 
     /**

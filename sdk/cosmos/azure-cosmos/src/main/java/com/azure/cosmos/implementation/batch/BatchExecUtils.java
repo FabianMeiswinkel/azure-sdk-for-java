@@ -3,8 +3,8 @@
 
 package com.azure.cosmos.implementation.batch;
 
+import com.azure.cosmos.CosmosItemOperationType;
 import com.azure.cosmos.implementation.HttpConstants;
-import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +25,7 @@ public final class BatchExecUtils {
 
     private final static Logger logger = LoggerFactory.getLogger(BatchExecUtils.class);
 
-    static String getStringOperationType(OperationType operationType) {
+    static String getStringOperationType(CosmosItemOperationType operationType) {
         switch (operationType) {
             case Create:
                 return OPERATION_CREATE;

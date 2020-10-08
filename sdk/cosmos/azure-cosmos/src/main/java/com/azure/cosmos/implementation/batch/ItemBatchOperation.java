@@ -4,6 +4,7 @@
 package com.azure.cosmos.implementation.batch;
 
 import com.azure.cosmos.CosmosItemOperation;
+import com.azure.cosmos.CosmosItemOperationType;
 import com.azure.cosmos.implementation.JsonSerializable;
 import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.RequestOptions;
@@ -22,11 +23,11 @@ public final class ItemBatchOperation<TResourceInternal> implements CosmosItemOp
     private final String id;
     private final PartitionKey partitionKey;
     private String partitionKeyJson;
-    private final OperationType operationType;
+    private final CosmosItemOperationType operationType;
     private final RequestOptions requestOptions;
 
     private ItemBatchOperation(
-        final OperationType operationType,
+        final CosmosItemOperationType operationType,
         final PartitionKey partitionKey,
         final String id,
         final TResourceInternal resource,
@@ -48,7 +49,7 @@ public final class ItemBatchOperation<TResourceInternal> implements CosmosItemOp
 
         jsonSerializable.set(
             BatchRequestResponseConstant.FIELD_OPERATION_TYPE,
-            BatchExecUtils.getStringOperationType(operation.getOperationTypeInternal()));
+            BatchExecUtils.getStringOperationType(operation.getOperationType()));
 
         if (StringUtils.isNotEmpty(operation.getPartitionKeyJson())) {
             // Used for non transactional batch.
@@ -82,11 +83,7 @@ public final class ItemBatchOperation<TResourceInternal> implements CosmosItemOp
         return this.id;
     }
 
-    public String getOperationType() {
-        return this.operationType.toString();
-    }
-
-    OperationType getOperationTypeInternal() {
+    public CosmosItemOperationType getOperationType() {
         return this.operationType;
     }
 
@@ -117,13 +114,13 @@ public final class ItemBatchOperation<TResourceInternal> implements CosmosItemOp
 
     public static final class Builder<TResource> {
 
-        private final OperationType operationType;
+        private final CosmosItemOperationType operationType;
         private String id;
         private PartitionKey partitionKey;
         private RequestOptions requestOptions;
         private TResource resource;
 
-        public Builder(final OperationType type) {
+        public Builder(final CosmosItemOperationType type) {
 
             checkNotNull(type, "expected non-null type");
 

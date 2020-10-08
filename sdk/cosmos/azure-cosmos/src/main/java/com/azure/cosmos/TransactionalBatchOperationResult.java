@@ -4,6 +4,7 @@
 package com.azure.cosmos;
 
 import com.azure.cosmos.implementation.JsonSerializable;
+import com.azure.cosmos.implementation.batch.ItemBatchOperation;
 import com.azure.cosmos.util.Beta;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
@@ -22,7 +23,7 @@ public final class TransactionalBatchOperationResult {
     private final int statusCode;
     private final Duration retryAfter;
     private final int subStatusCode;
-
+    private final CosmosItemOperation operation;
     /**
      * Initializes a new instance of the {@link TransactionalBatchOperationResult} class.
      */
@@ -31,7 +32,8 @@ public final class TransactionalBatchOperationResult {
                                       ObjectNode resourceObject,
                                       int statusCode,
                                       Duration retryAfter,
-                                      int subStatusCode) {
+                                      int subStatusCode,
+                                      CosmosItemOperation operation) {
         checkNotNull(statusCode, "expected non-null statusCode");
 
         this.eTag = eTag;
@@ -40,6 +42,7 @@ public final class TransactionalBatchOperationResult {
         this.statusCode = statusCode;
         this.retryAfter = retryAfter;
         this.subStatusCode = subStatusCode;
+        this.operation = operation;
     }
 
     /**
@@ -52,6 +55,12 @@ public final class TransactionalBatchOperationResult {
     public String getETag() {
         return this.eTag;
     }
+
+    /**
+     * Gets the operation leading to this result
+     * @return the operation leading to this result
+     */
+    public CosmosItemOperation getOperation() { return this.operation; }
 
     /**
      * Gets the request charge as request units (RU) consumed by the current operation.

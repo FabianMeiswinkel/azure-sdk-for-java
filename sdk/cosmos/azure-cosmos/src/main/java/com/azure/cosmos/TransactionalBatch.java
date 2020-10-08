@@ -139,7 +139,7 @@ public final class TransactionalBatch {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Create)
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(CosmosItemOperationType.Create)
             .requestOptions(requestOptions.toRequestOptions())
             .resource(item)
             .build();
@@ -177,7 +177,7 @@ public final class TransactionalBatch {
         }
 
         ItemBatchOperation<Void> operation =
-            new ItemBatchOperation.Builder<Void>(OperationType.Delete)
+            new ItemBatchOperation.Builder<Void>(CosmosItemOperationType.Delete)
             .requestOptions(requestOptions.toRequestOptions())
             .id(id)
             .build();
@@ -215,7 +215,7 @@ public final class TransactionalBatch {
         }
 
         ItemBatchOperation<Void> operation =
-            new ItemBatchOperation.Builder<Void>(OperationType.Read)
+            new ItemBatchOperation.Builder<Void>(CosmosItemOperationType.Read)
             .requestOptions(requestOptions.toRequestOptions())
             .id(id)
             .build();
@@ -259,7 +259,7 @@ public final class TransactionalBatch {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Replace)
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(CosmosItemOperationType.Replace)
             .requestOptions(requestOptions.toRequestOptions())
             .resource(item)
             .id(id)
@@ -299,7 +299,7 @@ public final class TransactionalBatch {
             requestOptions = new TransactionalBatchItemRequestOptions();
         }
 
-        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(OperationType.Upsert)
+        ItemBatchOperation<T> operation = new ItemBatchOperation.Builder<T>(CosmosItemOperationType.Upsert)
             .requestOptions(requestOptions.toRequestOptions())
             .resource(item)
             .build();
@@ -313,7 +313,7 @@ public final class TransactionalBatch {
      *
      * @return The list of operations which are to be executed.
      */
-    public List<ItemBatchOperation<?>> getOperations() {
+    public List<CosmosItemOperation> getOperations() {
         return UnmodifiableList.unmodifiableList(operations);
     }
 

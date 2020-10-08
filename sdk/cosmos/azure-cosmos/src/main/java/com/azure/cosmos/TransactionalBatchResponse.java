@@ -4,10 +4,12 @@
 package com.azure.cosmos;
 
 import com.azure.cosmos.implementation.batch.BatchExecUtils;
+import com.azure.cosmos.implementation.guava25.collect.ImmutableList;
 import com.azure.cosmos.util.Beta;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,7 +25,7 @@ public class TransactionalBatchResponse {
     private final Map<String, String> responseHeaders;
     private final int statusCode;
     private final String errorMessage;
-    private final Map<CosmosItemOperation, TransactionalBatchOperationResult> results;
+    private final List<TransactionalBatchOperationResult> results;
     private final int subStatusCode;
     private final CosmosDiagnostics cosmosDiagnostics;
 
@@ -51,7 +53,7 @@ public class TransactionalBatchResponse {
         this.errorMessage = errorMessage;
         this.responseHeaders = responseHeaders;
         this.cosmosDiagnostics = cosmosDiagnostics;
-        this.results = new HashMap<>();
+        this.results = new ArrayList<>();
     }
 
     /**
@@ -157,23 +159,13 @@ public class TransactionalBatchResponse {
     }
 
     /**
-     * Get all the results of the operations in batch.
+     * Get all the results of the operations in a batch in an unmodifiable instance so no one can
+     * change it in the down path.
      *
-     * @return Results of operation in batch.
+     * @return Results of operations in a batch.
      */
     public List<TransactionalBatchOperationResult> getResults() {
-        return new ArrayList<>(this.results.values());
-    }
-
-    /**
-     * Gets the result of the operation at the provided index in the batch.
-     *
-     * @param operation the operation in the batch whose result needs to be returned.
-     *
-     * @return Result of the operation.
-     */
-    public TransactionalBatchOperationResult getResult(CosmosItemOperation operation) {
-        return this.results.get(operation);
+        return Collections.unmodifiableList(this.results);
     }
 
     /**
@@ -189,7 +181,7 @@ public class TransactionalBatchResponse {
         return this.cosmosDiagnostics.getDuration();
     }
 
-    void addAll(Map<? extends CosmosItemOperation, ? extends TransactionalBatchOperationResult> collection) {
-        this.results.putAll(collection);
+    void addAll(List<? extends TransactionalBatchOperationResult> collection) {
+        this.results.addAll(collection);
     }
 }

@@ -632,7 +632,8 @@ public final class BridgeInternal {
         ObjectNode resourceObject,
         int statusCode,
         Duration retryAfter,
-        int subStatusCode) {
+        int subStatusCode,
+        CosmosItemOperation operation) {
 
         return new TransactionalBatchOperationResult(
             eTag,
@@ -640,7 +641,8 @@ public final class BridgeInternal {
             resourceObject,
             statusCode,
             retryAfter,
-            subStatusCode);
+            subStatusCode,
+            operation);
     }
 
     @Warning(value = INTERNAL_USE_ONLY_WARNING)
@@ -662,8 +664,8 @@ public final class BridgeInternal {
     @Warning(value = INTERNAL_USE_ONLY_WARNING)
     public static void addTransactionBatchResultInResponse(
         TransactionalBatchResponse transactionalBatchResponse,
-        Map<CosmosItemOperation, TransactionalBatchOperationResult> transactionalBatchOperationResult) {
+        List<TransactionalBatchOperationResult> transactionalBatchOperationResults) {
 
-        transactionalBatchResponse.addAll(transactionalBatchOperationResult);
+        transactionalBatchResponse.addAll(transactionalBatchOperationResults);
     }
 }
