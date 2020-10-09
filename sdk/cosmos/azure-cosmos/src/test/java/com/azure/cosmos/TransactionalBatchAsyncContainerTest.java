@@ -52,18 +52,14 @@ public class TransactionalBatchAsyncContainerTest extends BatchTestBase {
         TransactionalBatchResponse batchResponse1 = batchResponseMono.block();
         this.verifyBatchProcessed(batchResponse1, 2);
 
-        assertThat(batchResponse1.getResult(batch.getOperations().get(0)).getStatusCode())
-            .isEqualTo(HttpResponseStatus.CREATED.code());
-        assertThat(batchResponse1.getResult(batch.getOperations().get(1)).getStatusCode())
-            .isEqualTo(HttpResponseStatus.OK.code());
+        assertThat(batchResponse1.getResults().get(0).getStatusCode()).isEqualTo(HttpResponseStatus.CREATED.code());
+        assertThat(batchResponse1.getResults().get(1).getStatusCode()).isEqualTo(HttpResponseStatus.OK.code());
 
         // Block again.
         TransactionalBatchResponse batchResponse2 = batchResponseMono.block();
         assertThat(batchResponse2.getStatusCode()).isEqualTo(HttpResponseStatus.CONFLICT.code());
-        assertThat(batchResponse2.getResult(batch.getOperations().get(0)).getStatusCode())
-            .isEqualTo(HttpResponseStatus.CONFLICT.code());
-        assertThat(batchResponse2.getResult(batch.getOperations().get(1)).getStatusCode())
-            .isEqualTo(HttpResponseStatus.FAILED_DEPENDENCY.code());
+        assertThat(batchResponse2.getResults().get(0).getStatusCode()).isEqualTo(HttpResponseStatus.CONFLICT.code());
+        assertThat(batchResponse2.getResults().get(1).getStatusCode()).isEqualTo(HttpResponseStatus.FAILED_DEPENDENCY.code());
     }
 
     @Test(groups = {"simple"}, timeOut = TIMEOUT * 100)
@@ -92,16 +88,19 @@ public class TransactionalBatchAsyncContainerTest extends BatchTestBase {
             batch.replaceItem(testDocToReplace.getId(), testDocToReplace);
             batch.upsertItem(testDocToUpsert);
             batch.deleteItem(this.TestDocPk1ExistingC.getId());
-            TransactionalBatchResponse batchResponse = container.executeTransactionalBatch(
-                batch,
-                new TransactionalBatchRequestOptions().setSessionToken(invalidSessionToken)).block();
+
+            TransactionalBatchResponse batchResponse = container
+                .executeTransactionalBatch(
+                    batch,
+                    new TransactionalBatchRequestOptions().setSessionToken(invalidSessionToken))
+                .block();
 
             this.verifyBatchProcessed(batchResponse, 4);
 
-            assertThat(batchResponse.getResult(batch.getOperations().get(0)).getStatusCode()).isEqualTo(HttpResponseStatus.CREATED.code());
-            assertThat(batchResponse.getResult(batch.getOperations().get(1)).getStatusCode()).isEqualTo(HttpResponseStatus.OK.code());
-            assertThat(batchResponse.getResult(batch.getOperations().get(2)).getStatusCode()).isEqualTo(HttpResponseStatus.CREATED.code());
-            assertThat(batchResponse.getResult(batch.getOperations().get(3)).getStatusCode()).isEqualTo(HttpResponseStatus.NO_CONTENT.code());
+            assertThat(batchResponse.getResults().get(0).getStatusCode()).isEqualTo(HttpResponseStatus.CREATED.code());
+            assertThat(batchResponse.getResults().get(1).getStatusCode()).isEqualTo(HttpResponseStatus.OK.code());
+            assertThat(batchResponse.getResults().get(2).getStatusCode()).isEqualTo(HttpResponseStatus.CREATED.code());
+            assertThat(batchResponse.getResults().get(3).getStatusCode()).isEqualTo(HttpResponseStatus.NO_CONTENT.code());
         }
 
         {
@@ -119,6 +118,7 @@ public class TransactionalBatchAsyncContainerTest extends BatchTestBase {
                 batch.upsertItem(testDocToUpsert);
                 batch.deleteItem(this.TestDocPk1ExistingD.getId());
                 batch.readItem(this.TestDocPk1ExistingA.getId());
+
                 container.executeTransactionalBatch(
                     batch,
                     new TransactionalBatchRequestOptions().setSessionToken(invalidSessionToken)).block();

@@ -20,9 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkState;
 
@@ -137,7 +135,7 @@ public final class BatchResponseParser {
 
         // Status code of the exact operation which failed.
         if (responseStatusCode == HttpResponseStatus.MULTI_STATUS.code() && shouldPromoteOperationStatus) {
-            for (TransactionalBatchOperationResult result : results.values()) {
+            for (TransactionalBatchOperationResult result : results) {
                 if (result.getStatusCode() !=  HttpResponseStatus.FAILED_DEPENDENCY.code() &&
                     result.getStatusCode() >= 400) {
                     responseStatusCode = result.getStatusCode();
@@ -209,18 +207,17 @@ public final class BatchResponseParser {
     private static void createAndPopulateResults(final TransactionalBatchResponse response,
                                                  final List<ItemBatchOperation<?>> operations,
                                                  final Duration retryAfterDuration) {
-        final Map<CosmosItemOperation, TransactionalBatchOperationResult> results = new HashMap<>(operations.size());
+        final List<TransactionalBatchOperationResult> results = new ArrayList<>(operations.size());
         for (ItemBatchOperation<?> operation : operations) {
-            results.put(
-                operation,
+            results.add(
                 BridgeInternal.createTransactionBatchResult(
                     null,
                     response.getRequestCharge(),
                     null,
                     response.getStatusCode(),
                     retryAfterDuration,
-                    response.getSubStatusCode()
-                ));
+                    response.getSubStatusCode(),
+                    operation));
         }
 
         BridgeInternal.addTransactionBatchResultInResponse(response, results);

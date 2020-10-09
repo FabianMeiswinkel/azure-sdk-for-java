@@ -3,7 +3,6 @@
 
 package com.azure.cosmos;
 
-import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.apachecommons.collections.list.UnmodifiableList;
 import com.azure.cosmos.implementation.batch.ItemBatchOperation;
 import com.azure.cosmos.models.PartitionKey;
@@ -314,6 +313,15 @@ public final class TransactionalBatch {
      * @return The list of operations which are to be executed.
      */
     public List<CosmosItemOperation> getOperations() {
+        return UnmodifiableList.unmodifiableList(operations);
+    }
+
+    /**
+     * Return the list of operation in an unmodifiable instance so no one can change it in the down path.
+     *
+     * @return The list of operations which are to be executed.
+     */
+    List<ItemBatchOperation<?>> getOperationsInternal() {
         return UnmodifiableList.unmodifiableList(operations);
     }
 

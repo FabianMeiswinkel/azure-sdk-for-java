@@ -19,7 +19,6 @@ import com.azure.cosmos.implementation.RequestOptions;
 import com.azure.cosmos.implementation.RequestTimeline;
 import com.azure.cosmos.implementation.Resource;
 import com.azure.cosmos.implementation.ResourceResponse;
-import com.azure.cosmos.implementation.RxDocumentClientImpl;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
 import com.azure.cosmos.implementation.SerializationDiagnosticsContext;
@@ -612,7 +611,7 @@ public final class BridgeInternal {
 
     @Warning(value = INTERNAL_USE_ONLY_WARNING)
     public static List<ItemBatchOperation<?>> getOperationsFromTransactionalBatch(TransactionalBatch transactionalBatch) {
-        return transactionalBatch.getOperations();
+        return transactionalBatch.getOperationsInternal();
     }
 
     @Warning(value = INTERNAL_USE_ONLY_WARNING)

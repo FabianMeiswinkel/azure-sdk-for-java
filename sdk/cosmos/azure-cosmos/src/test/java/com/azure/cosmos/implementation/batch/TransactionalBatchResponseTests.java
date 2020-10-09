@@ -4,10 +4,10 @@
 package com.azure.cosmos.implementation.batch;
 
 import com.azure.cosmos.BridgeInternal;
+import com.azure.cosmos.CosmosItemOperationType;
 import com.azure.cosmos.TransactionalBatchOperationResult;
 import com.azure.cosmos.TransactionalBatchResponse;
 import com.azure.cosmos.implementation.HttpConstants;
-import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.RxDocumentServiceResponse;
 import com.azure.cosmos.implementation.directconnectivity.StoreResponse;
 import com.azure.cosmos.models.PartitionKey;
@@ -34,7 +34,7 @@ public class TransactionalBatchResponseTests {
         List<TransactionalBatchOperationResult> results = new ArrayList<>();
         ItemBatchOperation<?>[] arrayOperations = new ItemBatchOperation<?>[1];
 
-        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read)
+        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<>(CosmosItemOperationType.Read)
             .partitionKey(PartitionKey.NONE)
             .id("0")
             .build();
@@ -51,7 +51,8 @@ public class TransactionalBatchResponseTests {
             null,
             HttpResponseStatus.NOT_MODIFIED.code(),
             Duration.ofMillis(100),
-            HttpConstants.SubStatusCodes.PARTITION_KEY_MISMATCH
+            HttpConstants.SubStatusCodes.PARTITION_KEY_MISMATCH,
+            operation
         );
 
         results.add(transactionalBatchOperationResult);
@@ -86,6 +87,7 @@ public class TransactionalBatchResponseTests {
         assertThat(batchResponse.getSubStatusCode()).isEqualTo(HttpConstants.SubStatusCodes.PARTITION_KEY_RANGE_GONE);
 
         // Validate result fields
+        assertThat(batchResponse.getResults().get(0).getETag()).isEqualTo(operation.getId());
         assertThat(batchResponse.getResults().get(0).getRequestCharge()).isEqualTo(5.0);
         assertThat(batchResponse.getResults().get(0).getRetryAfterDuration()).isEqualTo(Duration.ofMillis(100));
         assertThat(batchResponse.getResults().get(0).getSubStatusCode()).isEqualTo(HttpConstants.SubStatusCodes.PARTITION_KEY_MISMATCH);
@@ -97,7 +99,7 @@ public class TransactionalBatchResponseTests {
         List<TransactionalBatchOperationResult> results = new ArrayList<>();
         ItemBatchOperation<?>[] arrayOperations = new ItemBatchOperation<?>[1];
 
-        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<Object>(OperationType.Read)
+        ItemBatchOperation<?> operation = new ItemBatchOperation.Builder<>(CosmosItemOperationType.Read)
             .partitionKey(PartitionKey.NONE)
             .id("0")
             .build();
@@ -114,7 +116,8 @@ public class TransactionalBatchResponseTests {
             null,
             HttpResponseStatus.NOT_MODIFIED.code(),
             null,
-            0
+            0,
+            operation
         );
 
         results.add(transactionalBatchOperationResult);

@@ -24,7 +24,8 @@ public class BatchOperationResultTests {
             objectNode,
             HttpResponseStatus.OK.code(),
             Duration.ofMillis(1234),
-            HttpConstants.SubStatusCodes.NAME_CACHE_IS_STALE
+            HttpConstants.SubStatusCodes.NAME_CACHE_IS_STALE,
+            null
         );
 
         return result;
@@ -51,7 +52,8 @@ public class BatchOperationResultTests {
                 null,
                 x,
                 null,
-                0
+                0,
+                null
             );
 
             boolean success = x >= 200 && x <= 299;
