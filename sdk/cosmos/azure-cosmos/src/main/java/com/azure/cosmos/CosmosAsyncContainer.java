@@ -966,6 +966,17 @@ public class CosmosAsyncContainer {
     }
 
     /**
+     * Gets a {@link CosmosAsyncReliableItemStoreBuilder} using the current container as context.
+     * <p>
+     * This can be further used to create a reliable store for the intended configuration.
+     *
+     * @return the {@link CosmosAsyncReliableItemStoreBuilder}.
+     */
+    public CosmosAsyncReliableItemStoreBuilder getReliableStoreBuilder() {
+        return new CosmosAsyncReliableItemStoreBuilder(this);
+    }
+
+    /**
      * Gets a {@link CosmosAsyncScripts} using the current container as context.
      * <p>
      * This can be further used to perform various operations on Cosmos scripts.
