@@ -1,61 +1,57 @@
 package com.azure.cosmos.implementation.reliableItemStore;
 
+import com.azure.core.util.Context;
+import com.azure.cosmos.BridgeInternal;
+import com.azure.cosmos.CosmosAsyncClient;
 import com.azure.cosmos.CosmosAsyncContainer;
+import com.azure.cosmos.CosmosAsyncDatabase;
 import com.azure.cosmos.CosmosAsyncReliableItemStore;
+import com.azure.cosmos.CosmosBridgeInternal;
 import com.azure.cosmos.CosmosPatchOperations;
+import com.azure.cosmos.implementation.AsyncDocumentClient;
+import com.azure.cosmos.implementation.Document;
+import com.azure.cosmos.implementation.NotFoundException;
+import com.azure.cosmos.implementation.OperationType;
+import com.azure.cosmos.implementation.Paths;
+import com.azure.cosmos.implementation.RequestOptions;
+import com.azure.cosmos.implementation.ResourceType;
+import com.azure.cosmos.implementation.TracerProvider;
 import com.azure.cosmos.models.CosmosItemRequestOptions;
 import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
+import com.azure.cosmos.models.ModelBridgeInternal;
 import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.SqlQuerySpec;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class ReliableStoreForImmutableItems extends CosmosAsyncReliableItemStore {
-    public ReliableStoreForImmutableItems(CosmosAsyncContainer container) {
+import static com.azure.core.util.FluxUtil.withContext;
+import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
+import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
+public class ReliableStoreForImmutableItems extends ReliableItemStore {
+
+    public ReliableStoreForImmutableItems(
+        CosmosAsyncClient client,
+        CosmosAsyncDatabase database,
+        CosmosAsyncContainer container,
+        Duration defaultTtlForSoftDeletes) {
+
+       super(client, database, container, defaultTtlForSoftDeletes);
     }
 
-    @Override
-    public <T> Mono<CosmosItemResponse<T>> readItem(String itemId, PartitionKey partitionKey,
-                                                    Class<T> itemType) {
-        return null;
-    }
+
 
     @Override
-    public <T> Mono<CosmosItemResponse<T>> readItem(String itemId, PartitionKey partitionKey, CosmosItemRequestOptions options, Class<T> itemType) {
-        return null;
-    }
-
-    @Override
-    public <T> CosmosPagedFlux<T> queryItems(String query, Class<T> classType) {
-        return null;
-    }
-
-    @Override
-    public <T> CosmosPagedFlux<T> queryItems(String query, CosmosQueryRequestOptions options,
-                                             Class<T> classType) {
-        return null;
-    }
-
-    @Override
-    public <T> CosmosPagedFlux<T> queryItems(SqlQuerySpec querySpec, Class<T> classType) {
-        return null;
-    }
-
-    @Override
-    public <T> CosmosPagedFlux<T> queryItems(SqlQuerySpec querySpec,
-                                             CosmosQueryRequestOptions options,
-                                             Class<T> classType) {
-        return null;
-    }
-
-    @Override
-    public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(String transactionId, PartitionKey partitionKey, T createTemplate, Function<T, T> replaceAction) {
+    public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(String transactionId,
+                                                               PartitionKey partitionKey,
+                                                               T createTemplate,
+                                                               Function<T, T> replaceAction) {
         return null;
     }
 
@@ -85,7 +81,8 @@ public class ReliableStoreForImmutableItems extends CosmosAsyncReliableItemStore
 
     @Override
     public <T> Mono<CosmosItemResponse<T>> createOrReadItem(String transactionId,
-                                                            PartitionKey partitionKey, T createTemplate) {
+                                                            PartitionKey partitionKey,
+                                                            T createTemplate) {
         return null;
     }
 
@@ -105,7 +102,9 @@ public class ReliableStoreForImmutableItems extends CosmosAsyncReliableItemStore
     }
 
     @Override
-    public <T> Mono<CosmosItemResponse<T>> patchItem(String transactionId, PartitionKey partitionKey, String itemId, Function<T, CosmosPatchOperations> patchAction, Class<T> itemType) {
+    public <T> Mono<CosmosItemResponse<T>> patchItem(String transactionId,
+                                                     PartitionKey partitionKey, String itemId,
+                                                     Function<T, CosmosPatchOperations> patchAction, Class<T> itemType) {
         return null;
     }
 
@@ -120,7 +119,10 @@ public class ReliableStoreForImmutableItems extends CosmosAsyncReliableItemStore
     }
 
     @Override
-    public Mono<CosmosItemResponse<Object>> deleteItem(String transactionId, PartitionKey partitionKey, String itemId) {
+    public Mono<CosmosItemResponse<Object>> deleteItem(String transactionId,
+                                                       PartitionKey partitionKey, String itemId) {
         return null;
     }
+
+
 }

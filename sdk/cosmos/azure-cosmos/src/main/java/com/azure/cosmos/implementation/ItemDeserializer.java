@@ -17,7 +17,7 @@ public interface ItemDeserializer {
                 return null;
             }
 
-            // TODO: does this handdle jackson ObjectNode?
+            // TODO: does this handle jackson ObjectNode?
             return Utils.parse(bytes, classType);
         }
 

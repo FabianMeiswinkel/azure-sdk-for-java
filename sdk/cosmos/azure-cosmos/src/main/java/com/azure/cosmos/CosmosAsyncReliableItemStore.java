@@ -15,6 +15,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public abstract class CosmosAsyncReliableItemStore {
+    public static final String SYSTEM_PROPERTY_NAME_IS_DELETED = "_del";
+
     /**
      * Reads an item.
      * <p>
@@ -45,68 +47,6 @@ public abstract class CosmosAsyncReliableItemStore {
     public abstract <T> Mono<CosmosItemResponse<T>> readItem(
         String itemId, PartitionKey partitionKey,
         CosmosItemRequestOptions options, Class<T> itemType);
-
-    /**
-     * Query for items in the current container.
-     * <p>
-     * After subscription the operation will be performed. The {@link CosmosPagedFlux} will
-     * contain one or several feed response of the obtained items. In case of
-     * failure the {@link CosmosPagedFlux} will error.
-     *
-     * @param <T> the type parameter.
-     * @param query the query.
-     * @param classType the class type.
-     * @return a {@link CosmosPagedFlux} containing one or several feed response pages of the obtained items or an
-     * error.
-     */
-    public abstract <T> CosmosPagedFlux<T> queryItems(String query, Class<T> classType);
-
-    /**
-     * Query for items in the current container using a string.
-     * <p>
-     * After subscription the operation will be performed. The {@link CosmosPagedFlux} will
-     * contain one or several feed response of the obtained items. In case of
-     * failure the {@link CosmosPagedFlux} will error.
-     *
-     * @param <T> the type parameter.
-     * @param query the query.
-     * @param options the query request options.
-     * @param classType the class type.
-     * @return a {@link CosmosPagedFlux} containing one or several feed response pages of the obtained items or an
-     * error.
-     */
-    public abstract <T> CosmosPagedFlux<T> queryItems(String query, CosmosQueryRequestOptions options, Class<T> classType);
-
-    /**
-     * Query for items in the current container using a {@link SqlQuerySpec}.
-     * <p>
-     * After subscription the operation will be performed. The {@link CosmosPagedFlux} will
-     * contain one or several feed response of the obtained items. In case of
-     * failure the {@link CosmosPagedFlux} will error.
-     *
-     * @param <T> the type parameter.
-     * @param querySpec the SQL query specification.
-     * @param classType the class type.
-     * @return a {@link CosmosPagedFlux} containing one or several feed response pages of the obtained items or an
-     * error.
-     */
-    public abstract <T> CosmosPagedFlux<T> queryItems(SqlQuerySpec querySpec, Class<T> classType);
-
-    /**
-     * Query for items in the current container using a {@link SqlQuerySpec} and {@link CosmosQueryRequestOptions}.
-     * <p>
-     * After subscription the operation will be performed. The {@link Flux} will
-     * contain one or several feed response of the obtained items. In case of
-     * failure the {@link CosmosPagedFlux} will error.
-     *
-     * @param <T> the type parameter.
-     * @param querySpec the SQL query specification.
-     * @param options the query request options.
-     * @param classType the class type.
-     * @return a {@link CosmosPagedFlux} containing one or several feed response pages of the obtained items or an
-     * error.
-     */
-    public abstract <T> CosmosPagedFlux<T> queryItems(SqlQuerySpec querySpec, CosmosQueryRequestOptions options, Class<T> classType) ;
 
     public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
         T createTemplate,
