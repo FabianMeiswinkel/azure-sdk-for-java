@@ -1,5 +1,6 @@
 package com.azure.cosmos;
 
+import com.azure.cosmos.implementation.InternalObjectNode;
 import com.azure.cosmos.models.CosmosItemRequestOptions;
 import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
@@ -13,6 +14,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+
+import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
 public abstract class CosmosAsyncReliableItemStore {
     public static final String SYSTEM_PROPERTY_NAME_IS_DELETED = "_del";
@@ -54,21 +57,22 @@ public abstract class CosmosAsyncReliableItemStore {
 
         return createOrReplaceItem(
             UUID.randomUUID().toString(),
-            null,
             createTemplate,
             replaceAction
         );
     }
 
     public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
-        PartitionKey partitionKey,
+        String id,
         T createTemplate,
+        PartitionKey partitionKey,
         Function<T, T> replaceAction) {
 
         return createOrReplaceItem(
             UUID.randomUUID().toString(),
-            partitionKey,
+            id,
             createTemplate,
+            partitionKey,
             replaceAction
         );
     }
@@ -78,18 +82,25 @@ public abstract class CosmosAsyncReliableItemStore {
         T createTemplate,
         Function<T, T> replaceAction) {
 
+        checkNotNull(createTemplate, "Argument 'createTemplate' must not be null.");
+
+        InternalObjectNode internalObjectNode =
+            InternalObjectNode.fromObjectToInternalObjectNode(createTemplate);
+
         return createOrReplaceItem(
             transactionId,
-            null,
+            internalObjectNode.getId(),
             createTemplate,
+            null,
             replaceAction
         );
     }
 
     public abstract <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
         String transactionId,
-        PartitionKey partitionKey,
+        String id,
         T createTemplate,
+        PartitionKey partitionKey,
         Function<T, T> replaceAction);
 
     public <T> Mono<CosmosItemResponse<T>> createOrPatchItem(

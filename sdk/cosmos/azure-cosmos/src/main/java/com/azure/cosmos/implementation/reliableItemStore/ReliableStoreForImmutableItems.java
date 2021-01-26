@@ -49,8 +49,9 @@ public class ReliableStoreForImmutableItems extends ReliableItemStore {
 
     @Override
     public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(String transactionId,
-                                                               PartitionKey partitionKey,
+                                                               String id,
                                                                T createTemplate,
+                                                               PartitionKey partitionKey,
                                                                Function<T, T> replaceAction) {
         return null;
     }

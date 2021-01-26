@@ -7,10 +7,12 @@ import com.azure.cosmos.CosmosAsyncContainer;
 import com.azure.cosmos.CosmosAsyncDatabase;
 import com.azure.cosmos.CosmosAsyncReliableItemStore;
 import com.azure.cosmos.CosmosBridgeInternal;
+import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.CosmosPatchOperations;
 import com.azure.cosmos.implementation.AsyncDocumentClient;
 import com.azure.cosmos.implementation.CosmosPagedFluxOptions;
 import com.azure.cosmos.implementation.Document;
+import com.azure.cosmos.implementation.HttpConstants;
 import com.azure.cosmos.implementation.NotFoundException;
 import com.azure.cosmos.implementation.OperationType;
 import com.azure.cosmos.implementation.Paths;
@@ -26,6 +28,7 @@ import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.SqlQuerySpec;
 import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.UtilBridgeInternal;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -42,13 +45,16 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNo
 public class ReliableItemStore extends CosmosAsyncReliableItemStore {
     protected final AsyncDocumentClient asyncDocumentClient;
     protected final CosmosAsyncClient client;
+    protected final CosmosAsyncContainer container;
     protected final String containerId;
     protected final String databaseId;
     protected final boolean isSoftDeleteEnabled;
     protected final String link;
-    protected final String readItemSpanName;
     protected final TracerProvider tracerProvider;
     protected final long ttlForSoftDeletesInSeconds;
+
+    protected final String createItemSpanName;
+    protected final String readItemSpanName;
 
     public ReliableItemStore(
         CosmosAsyncClient client,
@@ -64,6 +70,7 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
             "Argument 'ttlForSoftDeletes' must only have time periods up-to the second-level. " +
                 "No periods with more granularity - like millisecond or nanosecond are allowed.");
 
+        this.container = container;
         this.asyncDocumentClient = CosmosBridgeInternal.getAsyncDocumentClient(database);
         this.client = client;
         this.tracerProvider = CosmosBridgeInternal.getTracerProvider(container);
@@ -75,7 +82,8 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
         this.ttlForSoftDeletesInSeconds = this.isSoftDeleteEnabled ?
             defaultTtlForSoftDeletes.getSeconds() : -1;
 
-        this.readItemSpanName = "readItem." + container.getId();
+        this.createItemSpanName = "reliableStore.createItem." + container.getId();
+        this.readItemSpanName = "reliableStore.readItem." + container.getId();
     }
 
     @Override
@@ -91,6 +99,47 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
             itemType);
     }
 
+    protected <T> Mono<CosmosItemResponse<T>> readItemInternal(
+        String itemId,
+        PartitionKey partitionKey,
+        CosmosItemRequestOptions options,
+        Class<T> itemType,
+        boolean throwIfSoftDeleted) {
+
+        return this
+            .container
+            .readItem(itemId, partitionKey, options, itemType)
+            .map(response -> {
+
+                if (!this.isSoftDeleteEnabled ||
+                    !throwIfSoftDeleted) {
+
+                    return response;
+                }
+
+                final String itemLink = getItemLink(itemId);
+                Document document = response.getResource();
+                Integer isDeletedFlag = document != null ?
+                    document.getInt(SYSTEM_PROPERTY_NAME_IS_DELETED)
+                    : null;
+
+                if (document != null &&
+                    isDeletedFlag != null &&
+                    isDeletedFlag.equals(1)) {
+
+                    throw new NotFoundException(
+                        String.format(
+                            "The document '%s' has been soft deleted.",
+                            itemLink),
+                        response.getResponseHeaders(),
+                        null
+                    );
+                }
+
+                return response;
+            });
+    }
+
     @Override
     public <T> Mono<CosmosItemResponse<T>> readItem(
         String itemId,
@@ -98,18 +147,17 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
         CosmosItemRequestOptions options,
         Class<T> itemType) {
 
-        if (options == null) {
-            options = new CosmosItemRequestOptions();
-        }
 
-        ModelBridgeInternal.setPartitionKey(options, partitionKey);
-        RequestOptions requestOptions = ModelBridgeInternal.toRequestOptions(options);
-        return withContext(context -> readItemInternal(itemId, requestOptions, itemType, context, true));
     }
 
     @Override
-    public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(String transactionId,
-                                                               PartitionKey partitionKey, T createTemplate, Function<T, T> replaceAction) {
+    public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
+        String transactionId,
+        String id,
+        T createTemplate,
+        PartitionKey partitionKey,
+        Function<T, T> replaceAction) {
+
         return null;
     }
 
@@ -186,30 +234,77 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
         return builder.toString();
     }
 
-    private <T> Mono<CosmosItemResponse<T>> createItemInternal(T item, CosmosItemRequestOptions options, Context context) {
-        Mono<CosmosItemResponse<T>> responseMono = createItemInternal(item, options);
+    private <T> Mono<CosmosItemResponse<T>> createOrReplaceItemInternal(
+        String transactionId,
+        PartitionKey partitionKey,
+        String id,
+        T createTemplate,
+        Function<T, T> replaceAction,
+        Context context) {
+
+        checkNotNull(transactionId, "Argument 'transactionId' must not be null");
+        checkNotNull(id, "Argument 'id' must not be null");
+        checkNotNull(createTemplate, "Argument 'createTemplate' must not be null");
+        checkNotNull(context, "Argument 'context' must not be null");
+
+        CosmosItemRequestOptions options = new CosmosItemRequestOptions();
+        ModelBridgeInternal.setPartitionKey(options, partitionKey);
+
+        Mono<CosmosItemResponse<T>> responseMono = createOrReplaceItem(
+            transactionId,
+            partitionKey,
+            id,
+            createTemplate,
+            replaceAction,
+            options);
+
         return this.tracerProvider.traceEnabledCosmosItemResponsePublisher(responseMono,
             context,
-            this.createItemSpanName,
-            getId(),
-            database.getId(),
-            database.getClient(),
-            ModelBridgeInternal.getConsistencyLevel(options),
-            OperationType.Create,
+            this.createOrReplaceItemSpanName,
+            this.containerId,
+            this.databaseId,
+            this.client,
+            null, // Intentionally forcing default consistency - for writes the only option anyway
+            OperationType.,
             ResourceType.Document);
     }
 
-    protected <T> Mono<CosmosItemResponse<T>> createItemInternal(T item, CosmosItemRequestOptions options) {
+    private <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
+        String transactionId,
+        PartitionKey partitionKey,
+        String id,
+        T createTemplate,
+        Function<T, T> replaceAction,
+        CosmosItemRequestOptions options) {
+
         @SuppressWarnings("unchecked")
-        Class<T> itemType = (Class<T>) item.getClass();
+        Class<T> itemType = (Class<T>) createTemplate.getClass();
         RequestOptions requestOptions = ModelBridgeInternal.toRequestOptions(options);
         return this.asyncDocumentClient
                        .createDocument(
                            this.link,
-                           item,
+                           createTemplate,
                            requestOptions,
                            true)
-                       .map(response -> ModelBridgeInternal.createCosmosAsyncItemResponse(response, itemType, getItemDeserializer()))
+                       .onErrorResume(exception -> {
+                           final Throwable unwrappedException = Exceptions.unwrap(exception);
+                           if (unwrappedException instanceof CosmosException) {
+                               final CosmosException cosmosException = (CosmosException) unwrappedException;
+                               if (cosmosException.getStatusCode() == HttpConstants.StatusCodes.CONFLICT) {
+                                   final String itemLink = getItemLink(itemId);
+
+                                   this.asyncDocumentClient
+                                       .readDocument(
+                                           this.
+                                       )
+                               }
+                           }
+                           return Mono.error(unwrappedException);
+                       })
+                       .map(response -> ModelBridgeInternal.createCosmosAsyncItemResponse(
+                           response,
+                           itemType,
+                           this.asyncDocumentClient.getItemDeserializer()))
                        .single();
     }
 
