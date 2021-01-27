@@ -1057,12 +1057,31 @@ public class CosmosAsyncContainer {
     /**
      * Gets a {@link CosmosAsyncReliableItemStoreBuilder} using the current container as context.
      * <p>
-     * This can be further used to create a reliable store for the intended configuration.
+     * This can be further used to create a reliable item store which will add support
+     * for automatically handling transient errors. The reliable item store will not add any
+     * retry logic for concurrent operations (to address 412 Precondition Failed) and as such
+     * is optimized when the container is used as data store for immutable items or if the built-in
+     * retry logic for concurrent operations provided in the {@link CosmosAsyncConcurrentItemStore}
+     * does not work for your scenario and you need to customize it.
      *
      * @return the {@link CosmosAsyncReliableItemStoreBuilder}.
      */
-    public CosmosAsyncReliableItemStoreBuilder getReliableStoreBuilder() {
+    public CosmosAsyncReliableItemStoreBuilder getReliableItemStoreBuilder() {
         return new CosmosAsyncReliableItemStoreBuilder(this);
+    }
+
+    /**
+     * Gets a {@link CosmosAsyncConcurrentItemStoreBuilder} using the current container as context.
+     * <p>
+     * This can be further used to create a concurrent and reliable item store which like the
+     * {@link CosmosAsyncReliableItemStore} will add automatic retry handling for simple point operations
+     * and also adds capabilities to handle concurrent operations - createOrReplace for example would
+     * be able to handle pre-condition failures or conflicts transparently.
+     *
+     * @return the {@link CosmosAsyncConcurrentItemStoreBuilder}.
+     */
+    public CosmosAsyncConcurrentItemStoreBuilder getConcurrentItemStoreBuilder() {
+        return new CosmosAsyncConcurrentItemStoreBuilder(this);
     }
 
     /**

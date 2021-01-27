@@ -1,16 +1,16 @@
 package com.azure.cosmos;
 
-import com.azure.cosmos.implementation.reliableItemStore.ReliableItemStore;
+import com.azure.cosmos.implementation.reliableItemStore.ConcurrentItemStore;
 
 import java.time.Duration;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
-public final class CosmosAsyncReliableItemStoreBuilder {
-    private static final int MIN_MAX_TRANSIENT_RETRY_COUNT = 10;
-    private static final long MIN_TTL_FOR_TRANSACTION_LOG_IN_SECONDS= 10 * 60;
-    private static final int MIN_TRANSACTION_LOG_CAPACITY = 10;
+public final class CosmosAsyncConcurrentItemStoreBuilder {
+    private static final int MIN_MAX_TRANSIENT_RETRY_COUNT = 50;
+    private static final long MIN_TTL_FOR_TRANSACTION_LOG_IN_SECONDS= 60 * 60;
+    private static final int MIN_TRANSACTION_LOG_CAPACITY = 50;
 
     private final CosmosAsyncContainer container;
     private volatile int maxNumberOfRetriesOnTransientErrors;
@@ -19,7 +19,8 @@ public final class CosmosAsyncReliableItemStoreBuilder {
     private volatile long transactionLogCapacity;
     private volatile boolean useSoftDeletes;
 
-    CosmosAsyncReliableItemStoreBuilder(CosmosAsyncContainer container) {
+
+    CosmosAsyncConcurrentItemStoreBuilder(CosmosAsyncContainer container) {
         checkNotNull(container, "Argument 'container' must not be null.");
         this.container = container;
         this.ttlForSoftDeletesInSeconds = -1;
@@ -31,32 +32,30 @@ public final class CosmosAsyncReliableItemStoreBuilder {
 
     /**
      * Enables soft-deletes without TTL - meaning all delete operations of the
-     * {@link CosmosAsyncReliableItemStore} would result in a soft-delete and the document
+     * {@link CosmosAsyncConcurrentItemStore} would result in a soft-delete and the document
      * would not automatically be physically deleted.
      * @return the Store builder with the updated configuration
      */
-    public CosmosAsyncReliableItemStoreBuilder withSoftDeletes() {
+    public CosmosAsyncConcurrentItemStoreBuilder withSoftDeletes() {
         return this.withSoftDeletes(null);
     }
 
     /**
      * Enables soft-deletes without TTL - meaning all delete operations of the
-     * {@link CosmosAsyncReliableItemStore} would result in a soft-delete
+     * {@link CosmosAsyncConcurrentItemStore} would result in a soft-delete
      * @param ttlForSoftDeletes - the TTL that should be set when soft-deleting documents. If null
      *                            no TTL will be applied and soft-deleted documents will not be
      *                            physically deleted automatically.
      * @return the Store builder with the updated configuration
      */
-    public CosmosAsyncReliableItemStoreBuilder withSoftDeletes(Duration ttlForSoftDeletes) {
+    public CosmosAsyncConcurrentItemStoreBuilder withSoftDeletes(Duration ttlForSoftDeletes) {
         checkArgument(
             ttlForSoftDeletes == null || ttlForSoftDeletes.getNano() == 0,
             "Argument 'ttlForSoftDeletes' must only have time periods up-to the second-level. " +
                 "No periods with more granularity - like millisecond or nanosecond are allowed.");
 
         this.useSoftDeletes = true;
-        this.ttlForSoftDeletesInSeconds = ttlForSoftDeletes != null ?
-            ttlForSoftDeletes.getSeconds()
-            : -1;
+        this.ttlForSoftDeletesInSeconds = ttlForSoftDeletes.getSeconds();
         return this;
     }
 
@@ -66,7 +65,7 @@ public final class CosmosAsyncReliableItemStoreBuilder {
      *                        Integer.MAX_VALUE
      * @return the Store builder with the updated configuration
      */
-    public CosmosAsyncReliableItemStoreBuilder withTransientErrorRetryPolicy(int maxRetryCount) {
+    public CosmosAsyncConcurrentItemStoreBuilder withTransientErrorRetryPolicy(int maxRetryCount) {
         checkArgument(
             maxRetryCount >= MIN_MAX_TRANSIENT_RETRY_COUNT,
             String.format(
@@ -78,21 +77,21 @@ public final class CosmosAsyncReliableItemStoreBuilder {
     }
 
     /**
-     * To be able to reach idempotency for write operations the reliable item store
+     * To be able to reach idempotency for write operations the concurrent reliable item store
      * will use logical transaction ids and persist them in a system property within the
      * stored documents. To limit the size this transaction log can consume the transaction logs
      * are removed based on when the transaction got committed and the total number
      * of transaction og entries.
      * @param capacity             - the maximum number of transaction log entries
-     *                               persisted in each document. The default value (also minimum allowed value) is 10
+     *                               persisted in each document. The default value (also minimum allowed value) is 50
      * @param ttlForTransactionLog - the duration transaction log records will be maintained. Default
-     *                               duration (and minimum allowed duration) is 10 minutes -
+     *                               duration (and minimum allowed duration) is one hour -
      *                               which would guarantee idempotency as long as
-     *                               logical transactions finish within 10 minutes. The smallest granularity
+     *                               logical transactions finish within one hour. The smallest granularity
      *                               allowed are seconds (no ms or ns)
      * @return the Store builder with the updated configuration
      */
-    public CosmosAsyncReliableItemStoreBuilder withTransactionLogPolicy(
+    public CosmosAsyncConcurrentItemStoreBuilder withTransactionLogPolicy(
         int capacity,
         Duration ttlForTransactionLog) {
 
@@ -118,12 +117,12 @@ public final class CosmosAsyncReliableItemStoreBuilder {
     }
 
     /**
-     * Creates a {@link CosmosAsyncReliableItemStore} instance that can be used
+     * Creates a {@link CosmosAsyncConcurrentItemStore} instance that can be used
      * to reliably execute poin operations
-     * @return an instance of {@link CosmosAsyncReliableItemStore}
+     * @return an instance of {@link CosmosAsyncConcurrentItemStore}
      */
-    public CosmosAsyncReliableItemStore build() {
-        return new ReliableItemStore(
+    public CosmosAsyncConcurrentItemStore build() {
+        return new ConcurrentItemStore(
             this.container,
             this.ttlForTransactionLogInSeconds,
             this.transactionLogCapacity,

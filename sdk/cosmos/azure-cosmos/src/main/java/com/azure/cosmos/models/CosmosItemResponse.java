@@ -10,10 +10,13 @@ import com.azure.cosmos.implementation.ItemDeserializer;
 import com.azure.cosmos.implementation.ResourceResponse;
 import com.azure.cosmos.implementation.SerializationDiagnosticsContext;
 import com.azure.cosmos.implementation.Utils;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+
+import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
 /**
  * The type Cosmos item response. This contains the item and response methods
@@ -23,6 +26,7 @@ import java.util.Map;
 public class CosmosItemResponse<T> {
     private final Class<T> itemClassType;
     private final ItemDeserializer itemDeserializer;
+
     byte[] responseBodyAsByteArray;
     private T item;
     final ResourceResponse<Document> resourceResponse;
@@ -33,10 +37,24 @@ public class CosmosItemResponse<T> {
     }
 
     CosmosItemResponse(ResourceResponse<Document> response, byte[] responseBodyAsByteArray, Class<T> classType, ItemDeserializer itemDeserializer) {
+        this(response, responseBodyAsByteArray, classType, itemDeserializer, null);
+    }
+
+    CosmosItemResponse(
+        ResourceResponse<Document> response,
+        byte[] responseBodyAsByteArray,
+        Class<T> classType,
+        ItemDeserializer itemDeserializer,
+        InternalObjectNode props) {
+
+        checkNotNull(response, "Argument 'response' must not be null.");
+        checkNotNull(classType, "Argument 'classType' must not be null.");
+
         this.itemClassType = classType;
         this.responseBodyAsByteArray = responseBodyAsByteArray;
         this.resourceResponse = response;
         this.itemDeserializer = itemDeserializer;
+        this.props = props;
     }
 
     /**
@@ -64,6 +82,21 @@ public class CosmosItemResponse<T> {
             return item;
         }
 
+        if (item == null && this.itemClassType == ObjectNode.class) {
+            Instant serializationStartTime = Instant.now();
+            InternalObjectNode propertiesSnapshot = getProperties();
+            item = propertiesSnapshot != null ? (T) propertiesSnapshot.getPropertyBag() : null;
+            Instant serializationEndTime = Instant.now();
+            SerializationDiagnosticsContext.SerializationDiagnostics diagnostics = new SerializationDiagnosticsContext.SerializationDiagnostics(
+                serializationStartTime,
+                serializationEndTime,
+                SerializationDiagnosticsContext.SerializationType.ITEM_DESERIALIZATION
+            );
+            serializationDiagnosticsContext.addSerializationDiagnostics(diagnostics);
+
+            return item;
+        }
+
         if (item == null) {
             synchronized (this) {
                 if (item == null && !Utils.isEmpty(responseBodyAsByteArray)) {
@@ -81,6 +114,27 @@ public class CosmosItemResponse<T> {
         }
 
         return item;
+    }
+
+    <TTarget> CosmosItemResponse<TTarget> clone(
+        Class<TTarget> itemClassType,
+        String activityIdOverride,
+        CosmosDiagnostics diagnosticsOverride,
+        Duration durationOverride,
+        Double requestChargeOverride) {
+
+        InternalObjectNode propsSnapshot = this.props;
+
+        return new AggregatedItemResponse<>(
+            this.resourceResponse,
+            this.responseBodyAsByteArray,
+            itemClassType,
+            this.itemDeserializer,
+            propsSnapshot,
+            activityIdOverride,
+            diagnosticsOverride,
+            durationOverride,
+            requestChargeOverride);
     }
 
     /**
@@ -199,5 +253,52 @@ public class CosmosItemResponse<T> {
      */
     public String getETag() {
         return resourceResponse.getETag();
+    }
+
+    private static final class AggregatedItemResponse<T> extends CosmosItemResponse<T> {
+
+        private final Double requestChargeOverride;
+        private final CosmosDiagnostics diagnosticsOverride;
+        private final String activityIdOverride;
+        private final Duration durationOverride;
+
+        public AggregatedItemResponse(
+            ResourceResponse<Document> response,
+            byte[] responseBodyAsByteArray,
+            Class<T> itemClassType,
+            ItemDeserializer itemDeserializer,
+            InternalObjectNode props,
+            String activityIdOverride,
+            CosmosDiagnostics diagnosticsOverride,
+            Duration durationOverride,
+            Double requestChargeOverride) {
+
+            super(response, responseBodyAsByteArray, itemClassType, itemDeserializer, props);
+
+            this.requestChargeOverride = requestChargeOverride;
+            this.diagnosticsOverride = diagnosticsOverride;
+            this.activityIdOverride = activityIdOverride;
+            this.durationOverride = durationOverride;
+        }
+
+        @Override
+        public Duration getDuration() {
+            return this.durationOverride != null ? this.durationOverride : super.getDuration();
+        }
+
+        @Override
+        public CosmosDiagnostics getDiagnostics() {
+            return this.diagnosticsOverride != null ? this.diagnosticsOverride : super.getDiagnostics();
+        }
+
+        @Override
+        public double getRequestCharge() {
+            return this.requestChargeOverride != null ? this.requestChargeOverride : super.getRequestCharge();
+        }
+
+        @Override
+        public String getActivityId() {
+            return this.activityIdOverride != null ? this.activityIdOverride : super.getActivityId();
+        }
     }
 }

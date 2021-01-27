@@ -4,6 +4,7 @@
 package com.azure.cosmos.models;
 
 import com.azure.cosmos.ConsistencyLevel;
+import com.azure.cosmos.CosmosDiagnostics;
 import com.azure.cosmos.implementation.Conflict;
 import com.azure.cosmos.implementation.ConsistencyPolicy;
 import com.azure.cosmos.implementation.CosmosPagedFluxOptions;
@@ -51,6 +52,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -830,5 +832,22 @@ public final class ModelBridgeInternal {
 
         checkNotNull(options, "Argument 'options' must not be null.");
         options.setRequestContinuation(eTag);
+    }
+
+    @Warning(value = INTERNAL_USE_ONLY_WARNING)
+    public static <TSource, TTarget> CosmosItemResponse<TTarget> cloneCosmosItemResponse(
+        CosmosItemResponse<TSource> response,
+        Class<TTarget> classType,
+        String activityIdOverride,
+        CosmosDiagnostics diagnosticsOverride,
+        Duration durationOverride,
+        Double requestChargeOverride) {
+
+        return response.clone(
+            classType,
+            activityIdOverride,
+            diagnosticsOverride,
+            durationOverride,
+            requestChargeOverride);
     }
 }

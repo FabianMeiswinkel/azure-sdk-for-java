@@ -8,12 +8,14 @@ import com.azure.cosmos.implementation.Utils;
 import com.azure.cosmos.util.Beta;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -24,27 +26,25 @@ public final class CosmosDiagnostics {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String COSMOS_DIAGNOSTICS_KEY = "cosmosDiagnostics";
 
-    private ClientSideRequestStatistics clientSideRequestStatistics;
-    private FeedResponseDiagnostics feedResponseDiagnostics;
-
     static final String USER_AGENT = Utils.getUserAgent();
     static final String USER_AGENT_KEY = "userAgent";
 
+    private final CosmosDiagnosticsBase implementation;
+
     CosmosDiagnostics(DiagnosticsClientContext diagnosticsClientContext) {
-        this.clientSideRequestStatistics = new ClientSideRequestStatistics(diagnosticsClientContext);
+        this.implementation = new SimpleCosmosDiagnosticsImpl(diagnosticsClientContext);
     }
 
     CosmosDiagnostics(FeedResponseDiagnostics feedResponseDiagnostics) {
-        this.feedResponseDiagnostics = feedResponseDiagnostics;
+        this.implementation = new SimpleCosmosDiagnosticsImpl(feedResponseDiagnostics);
+    }
+
+    CosmosDiagnostics(List<CosmosDiagnostics> diagnostics) {
+        this.implementation = new AggregatedCosmosDiagnostics(diagnostics);
     }
 
     ClientSideRequestStatistics clientSideRequestStatistics() {
-        return clientSideRequestStatistics;
-    }
-
-    CosmosDiagnostics clientSideRequestStatistics(ClientSideRequestStatistics clientSideRequestStatistics) {
-        this.clientSideRequestStatistics = clientSideRequestStatistics;
-        return this;
+        return this.implementation.clientSideRequestStatistics();
     }
 
     /**
@@ -67,11 +67,7 @@ public final class CosmosDiagnostics {
      * @return request completion duration
      */
     public Duration getDuration() {
-        if (this.feedResponseDiagnostics != null) {
-            return null;
-        }
-
-        return this.clientSideRequestStatistics.getDuration();
+        return this.implementation.getDuration();
     }
 
     /**
@@ -80,36 +76,161 @@ public final class CosmosDiagnostics {
      */
     @Beta(value = Beta.SinceVersion.V4_9_0, warningText = Beta.PREVIEW_SUBJECT_TO_CHANGE_WARNING)
     public Set<URI> getRegionsContacted() {
-        return this.clientSideRequestStatistics.getRegionsContacted();
+        return this.implementation.getRegionsContacted();
     }
 
     FeedResponseDiagnostics getFeedResponseDiagnostics() {
-        return feedResponseDiagnostics;
+        return this.implementation.getFeedResponseDiagnostics();
     }
 
     void fillCosmosDiagnostics(ObjectNode parentNode, StringBuilder stringBuilder) {
-        if (this.feedResponseDiagnostics != null) {
-            if (parentNode != null) {
-                parentNode.put(USER_AGENT_KEY, USER_AGENT);
-                parentNode.putPOJO(COSMOS_DIAGNOSTICS_KEY, feedResponseDiagnostics);
+        this.implementation.fillCosmosDiagnostics(parentNode, stringBuilder);
+    }
+
+    private interface CosmosDiagnosticsBase {
+        ClientSideRequestStatistics clientSideRequestStatistics();
+        Set<URI> getRegionsContacted();
+        Duration getDuration();
+        void fillCosmosDiagnostics(ObjectNode parentNode, StringBuilder stringBuilder);
+        FeedResponseDiagnostics getFeedResponseDiagnostics();
+    }
+
+    private static final class SimpleCosmosDiagnosticsImpl implements CosmosDiagnosticsBase {
+
+        private ClientSideRequestStatistics clientSideRequestStatistics;
+        private FeedResponseDiagnostics feedResponseDiagnostics;
+
+        SimpleCosmosDiagnosticsImpl(DiagnosticsClientContext diagnosticsClientContext) {
+            this.clientSideRequestStatistics = new ClientSideRequestStatistics(diagnosticsClientContext);
+        }
+
+        SimpleCosmosDiagnosticsImpl(FeedResponseDiagnostics feedResponseDiagnostics) {
+            this.feedResponseDiagnostics = feedResponseDiagnostics;
+        }
+
+        @Override
+        public ClientSideRequestStatistics clientSideRequestStatistics() {
+            return this.clientSideRequestStatistics;
+        }
+
+        @Override
+        public Set<URI> getRegionsContacted() {
+            return this.clientSideRequestStatistics.getRegionsContacted();
+        }
+
+        @Override
+        public Duration getDuration() {
+            if (this.feedResponseDiagnostics != null) {
+                return null;
             }
 
-            if (stringBuilder != null) {
-                stringBuilder.append(USER_AGENT_KEY +"=").append(USER_AGENT).append(System.lineSeparator());
-                stringBuilder.append(feedResponseDiagnostics);
+            return this.clientSideRequestStatistics.getDuration();
+        }
+
+        @Override
+        public void fillCosmosDiagnostics(ObjectNode parentNode, StringBuilder stringBuilder) {
+            if (this.feedResponseDiagnostics != null) {
+                if (parentNode != null) {
+                    parentNode.put(USER_AGENT_KEY, USER_AGENT);
+                    parentNode.putPOJO(COSMOS_DIAGNOSTICS_KEY, feedResponseDiagnostics);
+                }
+
+                if (stringBuilder != null) {
+                    stringBuilder.append(USER_AGENT_KEY +"=").append(USER_AGENT).append(System.lineSeparator());
+                    stringBuilder.append(feedResponseDiagnostics);
+                }
+            } else {
+                if (parentNode != null) {
+                    parentNode.putPOJO(COSMOS_DIAGNOSTICS_KEY, clientSideRequestStatistics);
+                }
+
+                if (stringBuilder != null) {
+                    try {
+                        stringBuilder.append(OBJECT_MAPPER.writeValueAsString(this.clientSideRequestStatistics));
+                    } catch (JsonProcessingException e) {
+                        LOGGER.error("Error while parsing diagnostics ", e);
+                    }
+                }
             }
-        } else {
+        }
+
+        @Override
+        public FeedResponseDiagnostics getFeedResponseDiagnostics() {
+            return feedResponseDiagnostics;
+        }
+    }
+
+    private static final class AggregatedCosmosDiagnostics implements CosmosDiagnosticsBase {
+
+        private final CosmosDiagnostics[] diagnostics;
+
+        public AggregatedCosmosDiagnostics(List<CosmosDiagnostics> diagnosticsList) {
+            if (diagnosticsList != null) {
+                diagnostics = new CosmosDiagnostics[diagnosticsList.size()];
+                diagnosticsList.toArray(this.diagnostics);
+            } else {
+                diagnostics = null;
+            }
+        }
+
+        @Override
+        public ClientSideRequestStatistics clientSideRequestStatistics() {
+            return null;
+        }
+
+        @Override
+        public Set<URI> getRegionsContacted() {
+            return null;
+        }
+
+        @Override
+        public Duration getDuration() {
+            return null;
+        }
+
+        @Override
+        public void fillCosmosDiagnostics(ObjectNode parentNode, StringBuilder stringBuilder) {
+            if (this.diagnostics == null) {
+                return;
+            }
+
+
             if (parentNode != null) {
-                parentNode.putPOJO(COSMOS_DIAGNOSTICS_KEY, clientSideRequestStatistics);
+                ArrayNode diagnosticsRootNode = parentNode.putArray(COSMOS_DIAGNOSTICS_KEY);
+                for (CosmosDiagnostics inner : this.diagnostics) {
+                    ClientSideRequestStatistics clientSideRequestStatistics = inner.clientSideRequestStatistics();
+                    if (clientSideRequestStatistics != null) {
+                        diagnosticsRootNode.addPOJO(clientSideRequestStatistics);
+                    }
+                }
             }
 
             if (stringBuilder != null) {
                 try {
-                    stringBuilder.append(OBJECT_MAPPER.writeValueAsString(this.clientSideRequestStatistics));
+                    stringBuilder.append("[");
+                    boolean isFirst = true;
+                    for (CosmosDiagnostics inner : this.diagnostics) {
+                        ClientSideRequestStatistics clientSideRequestStatistics = inner.clientSideRequestStatistics();
+                        if (clientSideRequestStatistics != null) {
+                            if (isFirst) {
+                                isFirst = false;
+                            } else {
+                                stringBuilder.append(", ");
+                            }
+                            stringBuilder.append(
+                                OBJECT_MAPPER.writeValueAsString(clientSideRequestStatistics));
+                        }
+                    }
+                    stringBuilder.append("]");
                 } catch (JsonProcessingException e) {
                     LOGGER.error("Error while parsing diagnostics ", e);
                 }
             }
+        }
+
+        @Override
+        public FeedResponseDiagnostics getFeedResponseDiagnostics() {
+            throw new UnsupportedOperationException();
         }
     }
 }

@@ -16,6 +16,8 @@ import com.azure.cosmos.util.CosmosPagedFlux;
 import com.azure.cosmos.util.UtilBridgeInternal;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.util.List;
+
 import static com.azure.cosmos.implementation.Warning.INTERNAL_USE_ONLY_WARNING;
 
 /**
@@ -154,5 +156,10 @@ public final class CosmosBridgeInternal {
                 container.queryChangeFeedInternalFunc(
                     changeFeedRequestOptions,
                     JsonNode.class)));
+    }
+
+    @Warning(value = INTERNAL_USE_ONLY_WARNING)
+    public static CosmosDiagnostics createAggregatedDiagnostics(List<CosmosDiagnostics> diagnostics) {
+        return new CosmosDiagnostics(diagnostics);
     }
 }
