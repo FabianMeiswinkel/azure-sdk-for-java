@@ -105,14 +105,14 @@ public abstract class CosmosAsyncConcurrentItemStore extends CosmosAsyncReliable
     }
 
     public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
-        T createTemplate,
         PartitionKey partitionKey,
+        T createTemplate,
         Function<T, T> replaceAction) {
 
         return createOrReplaceItem(
             UUID.randomUUID().toString(),
-            createTemplate,
             partitionKey,
+            createTemplate,
             replaceAction
         );
     }
@@ -126,16 +126,16 @@ public abstract class CosmosAsyncConcurrentItemStore extends CosmosAsyncReliable
 
         return createOrReplaceItem(
             transactionId,
-            createTemplate,
             null,
+            createTemplate,
             replaceAction
         );
     }
 
     public abstract <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(
         String transactionId,
-        T createTemplate,
         PartitionKey partitionKey,
+        T createTemplate,
         Function<T, T> replaceAction);
 
     public <T> Mono<CosmosItemResponse<T>> patchOrCreateItem(

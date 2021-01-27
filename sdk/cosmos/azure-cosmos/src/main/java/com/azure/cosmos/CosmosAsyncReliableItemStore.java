@@ -59,6 +59,33 @@ public abstract class CosmosAsyncReliableItemStore {
         CosmosItemRequestOptions options,
         Class<T> itemType);
 
+    public <T> Mono<CosmosItemResponse<T>> createItem(
+        T item) {
+
+        return this.createItem(
+            UUID.randomUUID().toString(),
+            null,
+            item
+        );
+    }
+
+    public <T> Mono<CosmosItemResponse<T>> createItem(
+        PartitionKey partitionKey,
+        T item) {
+
+        return this.createItem(
+            UUID.randomUUID().toString(),
+            partitionKey,
+            item
+        );
+    }
+
+    public abstract <T> Mono<CosmosItemResponse<T>> createItem(
+        String transactionId,
+        PartitionKey partitionKey,
+        T item
+    );
+
     public <T> Mono<CosmosItemResponse<T>> replaceItem(
         String itemId,
         PartitionKey partitionKey,

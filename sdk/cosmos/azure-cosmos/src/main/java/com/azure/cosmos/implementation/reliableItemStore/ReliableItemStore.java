@@ -3,7 +3,9 @@ package com.azure.cosmos.implementation.reliableItemStore;
 import com.azure.cosmos.BridgeInternal;
 import com.azure.cosmos.CosmosAsyncContainer;
 import com.azure.cosmos.CosmosAsyncReliableItemStore;
+import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.CosmosPatchOperations;
+import com.azure.cosmos.implementation.HttpConstants;
 import com.azure.cosmos.implementation.InternalObjectNode;
 import com.azure.cosmos.implementation.NotFoundException;
 import com.azure.cosmos.implementation.ObservableHelper;
@@ -12,6 +14,7 @@ import com.azure.cosmos.models.CosmosItemRequestOptions;
 import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.models.ModelBridgeInternal;
 import com.azure.cosmos.models.PartitionKey;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -94,6 +97,93 @@ public class ReliableItemStore extends CosmosAsyncReliableItemStore {
         return ObservableHelper.inlineIfPossible(
             () -> observable,
             new TransientRetryPolicy(txCtx, this.maxNumberOfRetriesOnTransientErrors));
+    }
+
+    @Override
+    public <T> Mono<CosmosItemResponse<T>> createItem(
+        String transactionId,
+        PartitionKey partitionKey,
+        T item) {
+
+        @SuppressWarnings("unchecked") final Class<T> itemType =
+            (Class<T>)item.getClass();
+
+        final TransactionContext txCtx = this
+            .createTransactionContext(transactionId);
+
+        Mono<CosmosItemResponse<T>> observable = this
+            .createItemInternal(
+                txCtx,
+                item,
+                partitionKey,
+                itemType)
+            .map(r -> txCtx.convertResponseAndAddTelemetry(r, itemType));
+
+        return ObservableHelper.inlineIfPossible(
+            () -> observable,
+            new TransientRetryPolicy(txCtx, this.GetMaxTransientErrorRetryCount()));
+    }
+
+    public <T> Mono<CosmosItemResponse<InternalObjectNode>> createItemInternal(
+        TransactionContext txCtx,
+        T createTemplate,
+        PartitionKey partitionKey,
+        Class<T> itemType) {
+
+        final CosmosItemRequestOptions requestOptions =
+            ModelBridgeInternal.createCosmosItemRequestOptions(partitionKey);
+
+        InternalObjectNode createTemplateNode =
+            InternalObjectNode.fromObjectToInternalObjectNode(createTemplate);
+
+        final String id = createTemplateNode.getId();
+        txCtx.ensureTransactionId(createTemplateNode);
+
+        return this
+            .container
+            .createItem(
+                createTemplateNode,
+                requestOptions)
+            .onErrorResume(exception -> {
+                final Throwable unwrappedException = Exceptions.unwrap(exception);
+                if (unwrappedException instanceof CosmosException) {
+                    final CosmosException cosmosException = (CosmosException)unwrappedException;
+
+                    if (cosmosException.getStatusCode() == HttpConstants.StatusCodes.CONFLICT) {
+                        txCtx.recordCosmosException(cosmosException);
+
+                        Mono<CosmosItemResponse<InternalObjectNode>> observable = this
+                            .readItemInternal(
+                                id,
+                                partitionKey,
+                                requestOptions,
+                                false)
+                            .flatMap(currentPayloadResponse -> {
+                                txCtx.recordItemResponse(currentPayloadResponse);
+                                InternalObjectNode currentPayload =
+                                    currentPayloadResponse.getItem();
+
+                                if (txCtx.containsTransactionId(currentPayload)) {
+                                    this.throwIfSoftDeleted(
+                                        currentPayload,
+                                        this.getItemLink(id),
+                                        currentPayloadResponse.getResponseHeaders());
+
+                                    return Mono.just(currentPayloadResponse);
+                                }
+
+                                return Mono.error(cosmosException);
+                            });
+
+                        return ObservableHelper.inlineIfPossible(
+                            () -> observable,
+                            new PreconditionFailedRetryPolicy(
+                                txCtx,
+                                this.GetMaxTransientErrorRetryCount()));
+                    }
+                }
+                return Mono.error(unwrappedException);
+            });
     }
 
     @Override

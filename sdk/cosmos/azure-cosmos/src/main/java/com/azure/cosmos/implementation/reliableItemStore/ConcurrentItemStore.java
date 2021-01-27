@@ -56,8 +56,8 @@ public class ConcurrentItemStore extends CosmosAsyncConcurrentItemStore {
 
     @Override
     public <T> Mono<CosmosItemResponse<T>> createOrReplaceItem(String transactionId,
-                                                               T createTemplate,
                                                                PartitionKey partitionKey,
+                                                               T createTemplate,
                                                                Function<T, T> replaceAction) {
         @SuppressWarnings("unchecked") final Class<T> itemType =
             (Class<T>)createTemplate.getClass();
@@ -131,7 +131,6 @@ public class ConcurrentItemStore extends CosmosAsyncConcurrentItemStore {
                     final CosmosException cosmosException = (CosmosException)unwrappedException;
                     if (cosmosException.getStatusCode() == HttpConstants.StatusCodes.CONFLICT) {
                         txCtx.recordCosmosException(cosmosException);
-
                         Mono<CosmosItemResponse<InternalObjectNode>> observable = this
                             .reliableStore
                             .readItemInternal(
@@ -180,7 +179,13 @@ public class ConcurrentItemStore extends CosmosAsyncConcurrentItemStore {
     public <T> Mono<CosmosItemResponse<T>> readItem(String itemId, PartitionKey partitionKey,
                                                     CosmosItemRequestOptions options,
                                                     Class<T> itemType) {
-        return null;
+        return this.reliableStore.readItem(itemId, partitionKey, options, itemType);
+    }
+
+    @Override
+    public <T> Mono<CosmosItemResponse<T>> createItem(String transactionId,
+                                                      PartitionKey partitionKey, T item) {
+        return this.reliableStore.createItem(transactionId, partitionKey, item);
     }
 
     @Override
@@ -188,7 +193,8 @@ public class ConcurrentItemStore extends CosmosAsyncConcurrentItemStore {
                                                        PartitionKey partitionKey,
                                                        Function<T, T> replaceAction,
                                                        Class<T> itemType) {
-        return null;
+
+        return this.reliableStore.replaceItem(transactionId, itemId, partitionKey, replaceAction, itemType);
     }
 
     @Override

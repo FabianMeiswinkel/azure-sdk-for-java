@@ -26,9 +26,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -68,6 +70,57 @@ public class CosmosItemTest extends TestSuiteBase {
         CosmosItemResponse<InternalObjectNode> itemResponse1 = container.createItem(properties, new CosmosItemRequestOptions());
         validateItemResponse(properties, itemResponse1);
 
+    }
+
+    @Test(groups = { "simple" }, timeOut = TIMEOUT)
+    public void createItemReliably() throws Exception {
+
+        CosmosAsyncContainer asyncContainer = container.asyncContainer;
+        CosmosAsyncReliableItemStore itemStore = asyncContainer
+            .getReliableItemStoreBuilder()
+            .withSoftDeletes(Duration.ofDays(28))
+            .withTransactionLogPolicy(1000, Duration.ofDays(28))
+            .withTransientErrorRetryPolicy(Integer.MAX_VALUE)
+            .build();
+
+        String id = UUID.randomUUID().toString();
+        ObjectNode properties = getDocumentDefinition(id, id);
+        CosmosItemResponse<ObjectNode> itemResponse = itemStore
+            .createItem(
+                "ManualTxId-0001",
+                new PartitionKey(id),
+                properties)
+            .block();
+
+        CosmosItemResponse<ObjectNode> updatedItemResponse = itemStore
+            .replaceItem(
+                "ManualTxId-0002",
+                id,
+                new PartitionKey(id),
+                (input) -> input.put("NewProperty", "Hello World"),
+                ObjectNode.class)
+            .block();
+    }
+
+    @Test(groups = { "simple" }, timeOut = TIMEOUT)
+    public void createOrReplaceItemReliably() throws Exception {
+
+        CosmosAsyncContainer asyncContainer = container.asyncContainer;
+        CosmosAsyncConcurrentItemStore itemStore = asyncContainer
+            .getConcurrentItemStoreBuilder()
+            .withSoftDeletes(Duration.ofDays(28))
+            .withTransactionLogPolicy(1000, Duration.ofDays(28))
+            .withTransientErrorRetryPolicy(Integer.MAX_VALUE)
+            .build();
+
+        String id = UUID.randomUUID().toString();
+        CosmosItemResponse<ObjectNode> itemResponse = itemStore
+            .createOrReplaceItem(
+                "some transactionId",
+                new PartitionKey(id),
+                getDocumentDefinition(id, id),
+                (input) -> input.put("NewProperty", "Hello World"))
+            .block();
     }
 
     @Test(groups = {"simple"}, timeOut = TIMEOUT)
