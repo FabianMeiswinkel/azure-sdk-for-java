@@ -7,7 +7,10 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, PhysicalWriteInfo, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 
-class CosmosBatchWriter(userConfig: Map[String, String], inputSchema: StructType, cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
+private class CosmosBatchWriter(
+                                 userConfig: Map[String, String],
+                                 inputSchema: StructType,
+                                 cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
   extends BatchWrite
     with CosmosLoggingTrait {
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")

@@ -3,7 +3,7 @@
 
 package com.azure.cosmos.spark
 
-import com.azure.cosmos.models.CosmosParametrizedQuery
+import com.azure.cosmos.models.CosmosParameterizedQuery
 import org.apache.spark.sql.sources.Filter
 
 // TODO: moderakh, thought for future optimization:
@@ -11,7 +11,8 @@ import org.apache.spark.sql.sources.Filter
 //  then we can set partitionKeyValue in the CosmosQueryOption
 //  the benefit is that if the partitionKeyValue is set in the CosmosQueryOption
 //  the antlr query parsing support can eliminate the need for query plan fetch from GW
-case class AnalyzedFilters(cosmosParametrizedQuery: CosmosParametrizedQuery,
-                           filtersToBePushedDownToCosmos: Array[Filter],
-                           filtersNotSupportedByCosmos: Array[Filter])
+private case class AnalyzedFilters(
+                                    cosmosParametrizedQuery: CosmosParameterizedQuery,
+                                    filtersToBePushedDownToCosmos: Array[Filter],
+                                    filtersNotSupportedByCosmos: Array[Filter])
 

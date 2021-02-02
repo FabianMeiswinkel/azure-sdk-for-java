@@ -4,4 +4,4 @@ package com.azure.cosmos.spark
 
 import org.apache.spark.sql.connector.read.InputPartition
 
-case class CosmosInputPartition() extends InputPartition
+private case class CosmosInputPartition() extends InputPartition

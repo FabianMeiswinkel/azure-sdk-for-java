@@ -3,22 +3,24 @@
 package com.azure.cosmos.spark
 
 import com.azure.cosmos.implementation.CosmosClientMetadataCachesSnapshot
-import com.azure.cosmos.models.CosmosParametrizedQuery
+import com.azure.cosmos.models.CosmosParameterizedQuery
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.connector.read.{Batch, InputPartition, PartitionReaderFactory, Scan}
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.StructType
 
-case class CosmosScan(schema: StructType,
-                      config: Map[String, String], cosmosQuery: CosmosParametrizedQuery, cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
+private case class CosmosScan(schema: StructType,
+                              config: Map[String, String],
+                              cosmosQuery: CosmosParameterizedQuery,
+                              cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
   extends Scan
     with Batch
     with CosmosLoggingTrait {
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
   /**
-    * Returns the actual schema of this data source scan, which may be different from the physical
-    * schema of the underlying storage, as column pruning or other optimizations may happen.
-    */
+   * Returns the actual schema of this data source scan, which may be different from the physical
+   * schema of the underlying storage, as column pruning or other optimizations may happen.
+   */
   override def readSchema(): StructType = {
     schema
   }

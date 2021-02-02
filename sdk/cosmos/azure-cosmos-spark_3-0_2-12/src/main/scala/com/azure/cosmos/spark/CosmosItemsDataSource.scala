@@ -14,7 +14,11 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.JavaConverters._
 // scalastyle:on underscore.import
 
-class CosmosItemsDataSource extends DataSourceRegister with TableProvider with CosmosLoggingTrait {
+private class CosmosItemsDataSource
+  extends DataSourceRegister
+    with TableProvider
+    with CosmosLoggingTrait {
+
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
   /**

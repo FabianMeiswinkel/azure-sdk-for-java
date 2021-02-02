@@ -11,16 +11,17 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.write.{DataWriter, DataWriterFactory, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 
-class CosmosDataWriteFactory(userConfig: Map[String, String],
+private class CosmosDataWriteFactory(userConfig: Map[String, String],
                              inputSchema: StructType,
                              cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
   extends DataWriterFactory
     with CosmosLoggingTrait {
+
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
   override def createWriter(i: Int, l: Long): DataWriter[InternalRow] = new CosmosWriter(inputSchema)
 
-  class CosmosWriter(inputSchema: StructType) extends DataWriter[InternalRow] {
+  private class CosmosWriter(inputSchema: StructType) extends DataWriter[InternalRow] {
     logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
     val cosmosAccountConfig = CosmosAccountConfig.parseCosmosAccountConfig(userConfig)

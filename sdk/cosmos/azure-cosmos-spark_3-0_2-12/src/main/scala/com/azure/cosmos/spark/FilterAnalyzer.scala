@@ -2,20 +2,19 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.spark
 
-import com.azure.cosmos.models.CosmosParametrizedQuery
-import org.apache.spark.sql.sources.{
-  And, EqualNullSafe, EqualTo, Filter, GreaterThan,
-  GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or,
-  StringContains, StringEndsWith, StringStartsWith
-}
+import com.azure.cosmos.models.CosmosParameterizedQuery
 
 import scala.collection.mutable.ListBuffer
 
-case class FilterAnalyzer() {
+// scalastyle:off underscore.import
+import org.apache.spark.sql.sources._
+// scalastyle:on underscore.import
+
+private case class FilterAnalyzer() {
   // TODO: moderakh it is worth looking at DOM/AST:
   // https://github.com/Azure/azure-cosmos-dotnet-v3/tree/master/Microsoft.Azure.Cosmos/src/SqlObjects
   // https://github.com/Azure/azure-sdk-for-java/pull/17789#discussion_r530574888
-  def analyze(filters: Array[Filter]): AnalyzedFilters = {
+  private[spark] def analyze(filters: Array[Filter]): AnalyzedFilters = {
     val queryBuilder = new StringBuilder
     queryBuilder.append("SELECT * FROM r")
     val list = ListBuffer[(String, Any)]()
@@ -29,7 +28,7 @@ case class FilterAnalyzer() {
       val filterAsCosmosPredicate = new StringBuilder()
       val canBePushedDownToCosmos = appendCosmosQueryPredicate(filterAsCosmosPredicate, list, filter)
       if (canBePushedDownToCosmos) {
-        if (filtersToBePushedDownToCosmos.size > 0) {
+        if (filtersToBePushedDownToCosmos.nonEmpty) {
           whereClauseBuilder.append(" AND ")
         }
         filtersToBePushedDownToCosmos.append(filter)
@@ -39,22 +38,23 @@ case class FilterAnalyzer() {
       }
     }
 
-    if (whereClauseBuilder.length > 0) {
+    if (whereClauseBuilder.nonEmpty) {
       queryBuilder.append(" WHERE ")
       queryBuilder.append(whereClauseBuilder)
     }
 
     AnalyzedFilters(
-      CosmosParametrizedQuery(queryBuilder.toString(), list.map(f => f._1).toList, list.map(f => f._2).toList),
+      CosmosParameterizedQuery(queryBuilder.toString(), list.map(f => f._1).toList, list.map(f => f._2).toList),
       filtersToBePushedDownToCosmos.toArray,
       filtersNotSupportedByCosmos.toArray)
   }
 
   /**
-    * Provides Json Field path prefixed by the root. For example: "r['id']
-    * @param sparkFilterColumnName
-    * @return cosmosFieldpath
-    */
+   * Provides Json Field path prefixed by the root. For example: "r['id']
+   *
+   * @param sparkFilterColumnName The column name of the Spark filter
+   * @return cosmosFieldpath The json path for the field
+   */
   private def canonicalCosmosFieldPath(sparkFilterColumnName: String): String = {
     val result = new StringBuilder(FilterAnalyzer.rootName)
     sparkFilterColumnName.split('.').foreach(cNamePart => result.append(s"['${normalizedFieldName(cNamePart)}']"))
@@ -62,10 +62,11 @@ case class FilterAnalyzer() {
   }
 
   /**
-    * Parameter name in the parametrized query: e.g. @param1.
-    * @param paramNumber
-    * @return
-    */
+   * Parameter name in the parameterized query: e.g. @param1.
+   *
+   * @param paramNumber The parameter index
+   * @return The parameter name
+   */
   private def paramName(paramNumber: Integer): String = {
     s"@param$paramNumber"
   }

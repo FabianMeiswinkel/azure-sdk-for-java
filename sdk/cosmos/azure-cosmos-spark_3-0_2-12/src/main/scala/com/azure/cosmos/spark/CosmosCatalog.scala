@@ -28,7 +28,7 @@ import scala.collection.JavaConverters._
 //  - TableCatalog Catalog methods for working with Tables.
 
 // All Hive keywords are case-insensitive, including the names of Hive operators and functions.
-class CosmosCatalog extends CatalogPlugin
+private class CosmosCatalog extends CatalogPlugin
   with SupportsNamespaces
   with TableCatalog
   with CosmosLoggingTrait {
@@ -36,7 +36,7 @@ class CosmosCatalog extends CatalogPlugin
   private var catalogName: String = _
   private var client: CosmosAsyncClient = _
 
-  var tableOptions: Map[String, String] = _
+  private var tableOptions: Map[String, String] = _
 
   /**
     * Called to initialize configuration.
@@ -282,11 +282,11 @@ class CosmosCatalog extends CatalogPlugin
     tableIdent
   }
 
-  def toTableConfig(options: CaseInsensitiveStringMap) : Map[String, String] = {
+  private def toTableConfig(options: CaseInsensitiveStringMap) : Map[String, String] = {
     options.asCaseSensitiveMap().asScala.toMap
   }
 
-  object CosmosContainerProperties {
+  private object CosmosContainerProperties {
     private val partitionKeyPath = "partitionKeyPath"
     private val defaultPartitionKeyPath = "/id"
     def getPartitionKeyPath(properties: Map[String, String]) : String = {
@@ -296,11 +296,11 @@ class CosmosCatalog extends CatalogPlugin
     // TODO: add support for other container properties, indexing policy?
   }
 
-  object CosmosThroughputProperties {
+  private[spark] object CosmosThroughputProperties {
     private val manualThroughputFieldName = "manualThroughput"
     private val autoscaleMaxThroughputName = "autoscaleMaxThroughput"
 
-    def tryGetThroughputProperties(properties: Map[String, String]): Option[ThroughputProperties] = {
+    private[spark] def tryGetThroughputProperties(properties: Map[String, String]): Option[ThroughputProperties] = {
       properties.get(manualThroughputFieldName).map(
         manualThroughput => ThroughputProperties.createManualThroughput(manualThroughput.toInt)
       ).orElse(
@@ -310,7 +310,7 @@ class CosmosCatalog extends CatalogPlugin
       )
     }
 
-    def toMap(throughputProperties: ThroughputProperties): Map[String, String] = {
+    private[spark] def toMap(throughputProperties: ThroughputProperties): Map[String, String] = {
       val props = new util.HashMap[String, String]()
       val manualThroughput = throughputProperties.getManualThroughput
       if (manualThroughput != null) {

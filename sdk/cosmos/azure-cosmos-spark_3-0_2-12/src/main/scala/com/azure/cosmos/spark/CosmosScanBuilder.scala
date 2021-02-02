@@ -14,14 +14,17 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.JavaConverters._
 // scalastyle:on underscore.import
 
-case class CosmosScanBuilder(config: CaseInsensitiveStringMap, inputSchema: StructType, cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
+private case class CosmosScanBuilder(
+                                      config: CaseInsensitiveStringMap,
+                                      inputSchema: StructType,
+                                      cosmosClientStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot])
   extends ScanBuilder
     with SupportsPushDownFilters
     with SupportsPushDownRequiredColumns
     with CosmosLoggingTrait {
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
-  var processedPredicates : Option[AnalyzedFilters] = Option.empty
+  private var processedPredicates : Option[AnalyzedFilters] = Option.empty
 
   /**
     * Pushes down filters, and returns filters that need to be evaluated after scanning.

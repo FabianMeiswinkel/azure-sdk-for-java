@@ -2,78 +2,69 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.spark
 
-import java.util
-import java.util.UUID
-
-import com.azure.cosmos.implementation.{CosmosClientMetadataCachesSnapshot, RxDocumentClientImpl}
+import com.azure.cosmos.implementation.CosmosClientMetadataCachesSnapshot
 import com.azure.cosmos.models.PartitionKey
-import com.azure.cosmos.{CosmosBridgeInternal, CosmosClientBuilder, CosmosException}
+import com.azure.cosmos.{CosmosAsyncClient, CosmosClientBuilder, CosmosException}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{LongType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.codehaus.jackson.node.ObjectNode
-import org.json4s.scalap.scalasig.ClassFileParser.state
-import reactor.core.publisher.Mono
+
+import java.util
+import java.util.UUID
 
 // scalastyle:off underscore.import
 import scala.collection.JavaConverters._
 // scalastyle:on underscore.import
 
+private object CosmosTable {
+  private[spark] val RAW_JSON_BODY_ATTRIBUTE_NAME = "_rawBody"
+  private[spark] val TIMESTAMP_ATTRIBUTE_NAME = "_ts"
+  private[spark] val ID_ATTRIBUTE_NAME = "id"
+
+  // TODO fabianm - ??? Should we also add a default "_pk" column, which would retrieve the
+  //  pk value ???
+  private[spark] val defaultSchemaForInferenceDisabled = StructType(Seq(
+    StructField(RAW_JSON_BODY_ATTRIBUTE_NAME, StringType),
+    StructField(ID_ATTRIBUTE_NAME, StringType),
+    StructField(TIMESTAMP_ATTRIBUTE_NAME, LongType)
+  ))
+}
+
 /**
  * CosmosTable is the entry point this is registered in the spark
- * @param userProvidedSchema
- * @param transforms
- * @param userConfig
+ *
+ * @param transforms         The specified table partitioning.
+ * @param userConfig         The effective user configuration
+ * @param userProvidedSchema The user provided schema - can be null/none
  */
-class CosmosTable(val transforms: Array[Transform],
-                  val userConfig: util.Map[String, String],
-                  val userProvidedSchema: Option[StructType] = None)
+private class CosmosTable(val transforms: Array[Transform],
+                          val userConfig: util.Map[String, String],
+                          val userProvidedSchema: Option[StructType] = None)
   extends Table
     with SupportsWrite
     with SupportsRead
     with CosmosLoggingTrait {
   logInfo(s"Instantiated ${this.getClass.getSimpleName}")
 
-  val effectiveUserConfig = CosmosConfig.getEffectiveConfig(userConfig.asScala.toMap)
-  val clientConfig = CosmosAccountConfig.parseCosmosAccountConfig(effectiveUserConfig)
-  val client = new CosmosClientBuilder().endpoint(clientConfig.endpoint)
+  // This can only be used for data operation against a certain container.
+  private lazy val containerStateHandle: Broadcast[CosmosClientMetadataCachesSnapshot] =
+    initializeAndBroadcastCosmosClientStateForContainer()
+  private val effectiveUserConfig = CosmosConfig.getEffectiveConfig(userConfig.asScala.toMap)
+  private val clientConfig = CosmosAccountConfig.parseCosmosAccountConfig(effectiveUserConfig)
+  private val cosmosContainerConfig = CosmosContainerConfig.parseCosmosContainerConfig(effectiveUserConfig)
+  private val tableName = s"com.azure.cosmos.spark.items.${clientConfig.accountName}." +
+    s"${cosmosContainerConfig.database}.${cosmosContainerConfig.container}"
+  private val client = new CosmosClientBuilder().endpoint(clientConfig.endpoint)
     .key(clientConfig.key)
     .buildAsyncClient()
 
-  // This can only be used for data operation against a certain container.
-  lazy val containerStateHandle : Broadcast[CosmosClientMetadataCachesSnapshot] = initializeAndBroadcastCosmosClientStateForContainer
-
-  // This can be used only when databaseName and ContainerName are specified.
-  def initializeAndBroadcastCosmosClientStateForContainer() : Broadcast[CosmosClientMetadataCachesSnapshot] = {
-    val cosmosContainerConfig = CosmosContainerConfig.parseCosmosContainerConfig(effectiveUserConfig)
-    try {
-      client.getDatabase(cosmosContainerConfig.database).getContainer(cosmosContainerConfig.container).readItem(
-        UUID.randomUUID().toString, new PartitionKey(UUID.randomUUID().toString), classOf[ObjectNode])
-        .block()
-    } catch {
-      case e: CosmosException => None
-    }
-
-    val state = new CosmosClientMetadataCachesSnapshot()
-    state.serialize(client)
-
-    val sparkSession = SparkSession.active
-    sparkSession.sparkContext.broadcast(state)
-  }
-
-  // TODO: FIXME moderakh
-  // A name to identify this table. Implementations should provide a meaningful name, like the
-  // database and table name from catalog, or the location of files for this table.
-  override def name(): String = "com.azure.cosmos.spark.write"
-
-  override def schema(): StructType = {
-    userProvidedSchema.getOrElse(CosmosTableSchemaInferer.inferSchema(client, effectiveUserConfig))
-  }
+  override def name(): String = tableName
 
   override def capabilities(): util.Set[TableCapability] = Set(
     // ACCEPT_ANY_SCHEMA is needed because of this bug https://github.com/apache/spark/pull/30273
@@ -89,6 +80,19 @@ class CosmosTable(val transforms: Array[Transform],
       containerStateHandle)
   }
 
+  override def schema(): StructType = {
+    userProvidedSchema.getOrElse(this.inferSchema(client, effectiveUserConfig))
+  }
+
+  private def inferSchema(client: CosmosAsyncClient,
+                          userConfig: Map[String, String]): StructType = {
+
+    CosmosTableSchemaInferer.inferSchema(
+      client,
+      userConfig,
+      CosmosTable.defaultSchemaForInferenceDisabled)
+  }
+
   override def newWriteBuilder(logicalWriteInfo: LogicalWriteInfo): WriteBuilder = {
     // TODO: moderakh merge logicalWriteInfo config with other configs
     new CosmosWriterBuilder(
@@ -96,5 +100,22 @@ class CosmosTable(val transforms: Array[Transform],
       logicalWriteInfo.schema(),
       containerStateHandle
     )
+  }
+
+  // This can be used only when databaseName and ContainerName are specified.
+  private[spark] def initializeAndBroadcastCosmosClientStateForContainer(): Broadcast[CosmosClientMetadataCachesSnapshot] = {
+    try {
+      client.getDatabase(cosmosContainerConfig.database).getContainer(cosmosContainerConfig.container).readItem(
+        UUID.randomUUID().toString, new PartitionKey(UUID.randomUUID().toString), classOf[ObjectNode])
+        .block()
+    } catch {
+      case _: CosmosException => None
+    }
+
+    val state = new CosmosClientMetadataCachesSnapshot()
+    state.serialize(client)
+
+    val sparkSession = SparkSession.active
+    sparkSession.sparkContext.broadcast(state)
   }
 }
