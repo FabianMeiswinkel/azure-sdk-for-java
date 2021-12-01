@@ -3,7 +3,7 @@
 
 package com.azure.cosmos.implementation
 
-import com.azure.cosmos.CosmosClientBuilder
+import com.azure.cosmos.{CosmosAsyncContainer, CosmosClientBuilder}
 import com.azure.cosmos.implementation.ImplementationBridgeHelpers.CosmosClientBuilderHelper
 import com.azure.cosmos.implementation.changefeed.implementation.{ChangeFeedState, ChangeFeedStateV1}
 import com.azure.cosmos.implementation.feedranges.{FeedRangeContinuation, FeedRangeEpkImpl, FeedRangeInternal}
@@ -94,7 +94,7 @@ private[cosmos] object SparkBridgeImplementationInternal {
       .toArray
   }
 
-  private[this] def rangeToNormalizedRange(rangeInput: Range[String]) = {
+  private[cosmos] def rangeToNormalizedRange(rangeInput: Range[String]) = {
     val range = FeedRangeInternal.normalizeRange(rangeInput)
     assert(range != null, "Argument 'range' must not be null.")
     assert(range.isMinInclusive, "Argument 'range' must be minInclusive")
