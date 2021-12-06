@@ -43,5 +43,12 @@ private object CosmosConstants {
 
   object TableProperties {
     val PartitionKeyDefinition = "CosmosPartitionKeyDefinition"
+    val ETag = "ETagSnapshot"
+    val LastModified = "LastModifiedSnapshot"
+    val ProvisionedThroughputSnapshot = "ProvisionedThroughputSnapshot"
+    val IndexingPolicySnapshot = "IndexingPolicySnapshot"
+    val DefaultTtlInSecondsSnapshot = "DefaultTtlInSecondsSnapshot"
+    val AnalyticStoreTtlInSecondsSnapshot = "AnalyticStoreTtlInSecondsSnapshot"
+    val ChangeFeedPolicySnapshot = "ChangeFeedPolicySnapshot"
   }
 }

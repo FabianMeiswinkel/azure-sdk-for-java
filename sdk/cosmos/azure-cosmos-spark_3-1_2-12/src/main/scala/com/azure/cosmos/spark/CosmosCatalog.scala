@@ -3,8 +3,11 @@
 
 package com.azure.cosmos.spark
 
+import com.azure.cosmos.implementation.BadRequestException
 import com.azure.cosmos.spark.diagnostics.BasicLoggingTrait
 
+import java.time.format.DateTimeFormatter
+import java.time.{ZoneOffset, ZonedDateTime}
 import java.util
 import scala.collection.immutable.Map
 import scala.collection.mutable.ArrayBuffer
@@ -291,7 +294,52 @@ class CosmosCatalog
     logInfo(s"loadTable DB:$databaseName, Container: $containerName")
 
     this.tryGetContainerMetadata(databaseName, containerName) match {
-      case Some(containerProperties) =>
+      case Some(containerAndThroughputProperties) =>
+
+        val containerProperties = containerAndThroughputProperties._1
+        val throughputPropertiesOption = containerAndThroughputProperties._2
+
+        val indexingPolicySnapshotJson =  Option.apply(containerProperties.getIndexingPolicy) match {
+          case Some(p) => ModelBridgeInternal.getJsonSerializable(p).toJson
+          case None => "null"
+        }
+
+        val changeFeedPolicyPolicySnapshotJson = Option.apply(containerProperties.getChangeFeedPolicy) match {
+          case Some(p) => ModelBridgeInternal.getJsonSerializable(p).toJson
+          case None => "null"
+        }
+
+        val defaultTimeToLiveInSecondsSnapshot = Option.apply(containerProperties.getDefaultTimeToLiveInSeconds) match {
+          case Some(defaultTtl) => defaultTtl.toString
+          case None => "null"
+        }
+
+        val analyticStoreTimeToLiveInSecondsSnapshot = Option.apply(containerProperties.getAnalyticalStoreTimeToLiveInSeconds) match {
+          case Some(analyticStoreTtl) => analyticStoreTtl.toString
+          case None => "null"
+        }
+
+        val etagSnapshot = containerProperties.getETag
+
+        val lastModifiedSnapshot = ZonedDateTime
+          .ofInstant(containerProperties.getTimestamp, ZoneOffset.UTC)
+          .format(DateTimeFormatter.ISO_INSTANT)
+
+        val provisionedThroughputSnapshot = throughputPropertiesOption match {
+          case Some(throughputProperties) =>
+            val throughputLastModified = ZonedDateTime
+              .ofInstant(throughputProperties.getTimestamp, ZoneOffset.UTC)
+              .format(DateTimeFormatter.ISO_INSTANT)
+            if (throughputProperties.getAutoscaleMaxThroughput == 0) {
+              s"Manual|${throughputProperties.getManualThroughput}|$throughputLastModified"
+            } else {
+              // AutoScale|CurrentRU|MaxRU
+              s"AutoScale|${throughputProperties.getManualThroughput}|" +
+                s"${throughputProperties.getAutoscaleMaxThroughput}|" +
+                s"$throughputLastModified"
+            }
+          case None => s"Serverless"
+        }
 
         val pkDefinitionJson = ModelBridgeInternal
           .getJsonSerializable(
@@ -302,6 +350,34 @@ class CosmosCatalog
         tableProperties.put(
           CosmosConstants.TableProperties.PartitionKeyDefinition,
           pkDefinitionJson
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.ProvisionedThroughputSnapshot,
+          provisionedThroughputSnapshot
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.ETag,
+          etagSnapshot
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.LastModified,
+          lastModifiedSnapshot
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.DefaultTtlInSecondsSnapshot,
+          defaultTimeToLiveInSecondsSnapshot
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.AnalyticStoreTtlInSecondsSnapshot,
+          analyticStoreTimeToLiveInSecondsSnapshot
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.IndexingPolicySnapshot,
+          indexingPolicySnapshotJson
+        )
+        tableProperties.put(
+          CosmosConstants.TableProperties.ChangeFeedPolicySnapshot,
+          changeFeedPolicyPolicySnapshotJson
         )
 
         new ItemsTable(
@@ -541,7 +617,7 @@ class CosmosCatalog
   (
     databaseName: String,
     containerName: String
-  ): Option[CosmosContainerProperties] = {
+  ): Option[(CosmosContainerProperties, Option[ThroughputProperties])] = {
 
     try {
       Some(
@@ -550,13 +626,27 @@ class CosmosCatalog
           None,
           s"CosmosCatalog(name $catalogName).tryGetContainerMetadata($databaseName, $containerName)"))
           .to(cosmosClientCacheItem =>
-            cosmosClientCacheItem
-              .client
-              .getDatabase(databaseName)
-              .getContainer(containerName)
-              .read()
-              .block()
-              .getProperties
+            (
+              cosmosClientCacheItem
+                .client
+                .getDatabase(databaseName)
+                .getContainer(containerName)
+                .read()
+                .block()
+                .getProperties,
+
+              try {
+                Some(cosmosClientCacheItem
+                  .client
+                  .getDatabase(databaseName)
+                  .getContainer(containerName)
+                  .readThroughput()
+                  .block()
+                  .getProperties)
+              } catch {
+                case BadRequestException => None
+              }
+            )
         ))
     } catch {
       case e: CosmosException if isNotFound(e) =>
