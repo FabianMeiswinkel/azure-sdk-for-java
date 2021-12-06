@@ -6,10 +6,10 @@ package com.azure.cosmos.implementation
 import com.azure.cosmos.{CosmosAsyncContainer, CosmosClientBuilder}
 import com.azure.cosmos.implementation.ImplementationBridgeHelpers.CosmosClientBuilderHelper
 import com.azure.cosmos.implementation.changefeed.implementation.{ChangeFeedState, ChangeFeedStateV1}
-import com.azure.cosmos.implementation.feedranges.{FeedRangeContinuation, FeedRangeEpkImpl, FeedRangeInternal}
+import com.azure.cosmos.implementation.feedranges.{FeedRangeContinuation, FeedRangeEpkImpl, FeedRangeInternal, FeedRangePartitionKeyImpl}
 import com.azure.cosmos.implementation.query.CompositeContinuationToken
 import com.azure.cosmos.implementation.routing.Range
-import com.azure.cosmos.models.FeedRange
+import com.azure.cosmos.models.{FeedRange, PartitionKey, PartitionKeyDefinition, SparkModelBridgeInternal}
 import com.azure.cosmos.spark.NormalizedRange
 
 // scalastyle:off underscore.import
@@ -145,4 +145,20 @@ private[cosmos] object SparkBridgeImplementationInternal {
     val epk = feedRange.asInstanceOf[FeedRangeEpkImpl]
     rangeToNormalizedRange(epk.getRange)
   }
+
+  private[cosmos] def partitionKeyValueToNormalizedRange
+  (
+    partitionKeyValue: Object,
+    partitionKeyDefinitionJson: String
+  ): NormalizedRange = {
+
+    val feedRange = FeedRange
+      .forLogicalPartition(new PartitionKey(partitionKeyValue))
+      .asInstanceOf[FeedRangePartitionKeyImpl]
+
+    val pkDefinition = SparkModelBridgeInternal.createPartitionKeyDefinitionFromJson(partitionKeyDefinitionJson)
+    rangeToNormalizedRange(feedRange.getEffectiveRange(pkDefinition))
+  }
+
+
 }

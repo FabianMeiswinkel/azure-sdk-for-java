@@ -291,14 +291,27 @@ class CosmosCatalog
     logInfo(s"loadTable DB:$databaseName, Container: $containerName")
 
     this.tryGetContainerMetadata(databaseName, containerName) match {
-      case Some(_) =>
+      case Some(containerProperties) =>
+
+        val pkDefinitionJson = ModelBridgeInternal
+          .getJsonSerializable(
+            containerProperties.getPartitionKeyDefinition)
+          .toJson
+
+        val tableProperties = new util.HashMap[String, String]()
+        tableProperties.put(
+          CosmosConstants.TableProperties.PartitionKeyDefinition,
+          pkDefinitionJson
+        )
+
         new ItemsTable(
           sparkSession,
           Array[Transform](),
           Some(databaseName),
           Some(containerName),
           tableOptions.asJava,
-          None)
+          None,
+          tableProperties)
       case None =>
         this.tryGetViewDefinition(databaseName, containerName) match {
           case Some(viewDefinition) =>

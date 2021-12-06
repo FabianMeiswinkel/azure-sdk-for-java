@@ -3,9 +3,14 @@
 package com.azure.cosmos.spark.udf
 
 import com.azure.cosmos.SparkBridgeInternal
+import com.azure.cosmos.implementation.{SparkBridgeImplementationInternal, Strings}
 import com.azure.cosmos.models.{FeedRange, PartitionKey}
+import com.azure.cosmos.spark.CosmosPredicates.requireNotNullOrEmpty
+import com.azure.cosmos.spark.udf.GetFeedRangeForPartitionKeyValue.parseUserConfigJson
 import com.azure.cosmos.spark.{CosmosClientCache, CosmosClientConfiguration, CosmosConfig, CosmosContainerConfig, CosmosReadConfig, Loan}
-import org.apache.spark.sql.api.java.UDF4
+import com.fasterxml.jackson.core.`type`.TypeReference
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import org.apache.spark.sql.api.java.UDF2
 
 import java.util
 
@@ -15,42 +20,42 @@ import scala.collection.JavaConverters._
 
 @SerialVersionUID(1L)
 // TODO @fabianm needs another overload to support hierarchical partition keys
-class GetFeedRangeForPartitionKeyValue extends UDF4[util.Map[String, String], Option[String], Option[String], Object, String] {
+class GetFeedRangeForPartitionKeyValue extends UDF2[String, Object, String] {
   override def call
   (
-    userConfig: util.Map[String, String],
-    databaseName: Option[String],
-    containerName: Option[String],
+    partitionKeyDefinitionJson: String,
     partitionKeyValue: Object
   ): String = {
 
-    val effectiveUserConfig: Map[String, String] = CosmosConfig.getEffectiveConfig(
-      databaseName,
-      containerName,
-      userConfig.asScala.toMap)
-    val readConfig: CosmosReadConfig = CosmosReadConfig.parseCosmosReadConfig(effectiveUserConfig)
-    val cosmosContainerConfig: CosmosContainerConfig =
-      CosmosContainerConfig.parseCosmosContainerConfig(effectiveUserConfig, databaseName, containerName)
+    requireNotNullOrEmpty(partitionKeyDefinitionJson, "partitionKeyDefinitionJson")
 
-    Loan(
-      CosmosClientCache(
-        CosmosClientConfiguration(effectiveUserConfig, useEventualConsistency = readConfig.forceEventualConsistency),
-        None,
-        "GetFeedRangeForPartitionKeyValue"
-      ))
-      .to(clientCacheItem => {
+    val range = SparkBridgeImplementationInternal
+      .partitionKeyValueToNormalizedRange(partitionKeyValue, partitionKeyDefinitionJson)
 
-        val feedRange = FeedRange.forLogicalPartition(new PartitionKey(partitionKeyValue))
-        val container = clientCacheItem
-          .client
-          .getDatabase(cosmosContainerConfig.database)
-          .getContainer(cosmosContainerConfig.container)
-        val range = SparkBridgeInternal.getNormalizedEffectiveRange(
-          container,
-          feedRange
-        )
+    s"${range.min}-${range.max}"
+  }
+}
 
-        s"${range.min}-${range.max}"
-      })
+private object GetFeedRangeForPartitionKeyValue {
+  private[this] val objectMapper = new ObjectMapper()
+  private[this] val stringMapTypeReference = new TypeReference[util.Map[String, String]]() {}
+
+  def parseUserConfigJson(json: String): util.Map[String, String] = {
+    val parsedNode = objectMapper.readTree(json)
+    if (isValidJson(parsedNode)) {
+      try {
+        val map: util.Map[String, String] = objectMapper.readValue(json, stringMapTypeReference )
+        map
+      } catch {
+        case e: Throwable => throw new IllegalArgumentException(s"Unable to parse user config - ${e.toString}")
+      }
+    } else {
+      throw new IllegalArgumentException("Unable to parse user config - invalid json")
+    }
+  }
+
+  def isValidJson(parsedNode: JsonNode): Boolean = {
+    parsedNode != null &&
+      parsedNode.isObject
   }
 }

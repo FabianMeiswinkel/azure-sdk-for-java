@@ -40,4 +40,8 @@ private object CosmosConstants {
   object SystemProperties {
     val LineSeparator = System.getProperty("line.separator")
   }
+
+  object TableProperties {
+    val PartitionKeyDefinition = "CosmosPartitionKeyDefinition"
+  }
 }

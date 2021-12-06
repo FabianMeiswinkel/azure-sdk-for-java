@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.spark.udf
 
-import com.azure.cosmos.SparkBridgeInternal
+import com.azure.cosmos.{CosmosAsyncContainer, SparkBridgeInternal}
 import com.azure.cosmos.implementation.SparkBridgeImplementationInternal
 import com.azure.cosmos.models.{FeedRange, PartitionKey}
 import com.azure.cosmos.spark.{CosmosClientCache, CosmosClientConfiguration, CosmosConfig, CosmosContainerConfig, CosmosReadConfig, Loan, NormalizedRange}
@@ -16,6 +16,7 @@ import scala.collection.JavaConverters._
 // scalastyle:on underscore.import
 
 @SerialVersionUID(1L)
+//scalastyle:off method.length
 class GetFeedRangesForPartitionKeyValues extends UDF4[util.Map[String, String], Option[String], Option[String], util.List[Object], String] {
   override def call
   (
@@ -46,45 +47,65 @@ class GetFeedRangesForPartitionKeyValues extends UDF4[util.Map[String, String], 
           .getDatabase(cosmosContainerConfig.database)
           .getContainer(cosmosContainerConfig.container)
 
-        val epkRangesForPartitionKeyValues = mutable.SortedSet[NormalizedRange]()
-
-        for (partitionKeyValue <- partitionKeyValues.asScala) {
-          val feedRange = FeedRange.forLogicalPartition(new PartitionKey(partitionKeyValue))
-          val range = SparkBridgeInternal.getNormalizedEffectiveRange(
-            container,
-            feedRange
-          )
-
-          epkRangesForPartitionKeyValues.add(range)
-        }
-
-        val epkRanges = mutable.SortedSet[NormalizedRange]()
-
-        for (feedRange <- container.getFeedRanges.block.asScala) {
-          val partitionRange = SparkBridgeInternal.getNormalizedEffectiveRange(
-            container,
-            feedRange
-          )
-
-          val relevantRanges = epkRangesForPartitionKeyValues
-            .filter(r => SparkBridgeImplementationInternal.doRangesOverlap(r, partitionRange))
-            .toArray
-
-          if (relevantRanges.length > 0) {
-
-            val min = getMaxString(relevantRanges(0).min, partitionRange.min)
-            val max = getMinString(relevantRanges.last.max, partitionRange.max)
-
-            epkRanges.add(
-              NormalizedRange(min, max)
-            )
-          }
-        }
-
-        
-
+        val effectiveEpkRanges = getEffectiveEpkRangesForContainer(container, partitionKeyValues.asScala)
+        effectiveEpkRanges
+          .map(r => s"${r.min}-${r.max}")
+          .mkString(",")
       })
-    ""
+  }
+  //scalastyle:on method.length
+
+  private[this] def getEpkRangesForPkValues
+  (
+    container: CosmosAsyncContainer,
+    partitionKeyValues: Seq[Object]
+  ): mutable.SortedSet[NormalizedRange] = {
+    val epkRangesForPartitionKeyValues = mutable.SortedSet[NormalizedRange]()
+
+    for (partitionKeyValue <- partitionKeyValues) {
+      val feedRange = FeedRange.forLogicalPartition(new PartitionKey(partitionKeyValue))
+      val range = SparkBridgeInternal.getNormalizedEffectiveRange(
+        container,
+        feedRange
+      )
+
+      epkRangesForPartitionKeyValues.add(range)
+    }
+
+    epkRangesForPartitionKeyValues
+  }
+
+  private[this] def getEffectiveEpkRangesForContainer
+  (
+    container: CosmosAsyncContainer,
+    partitionKeyValues: Seq[Object]
+  ) : mutable.SortedSet[NormalizedRange] = {
+
+    val epkRangesForPartitionKeyValues = getEpkRangesForPkValues(container, partitionKeyValues)
+    val epkRangesForContainer = mutable.SortedSet[NormalizedRange]()
+
+    for (feedRange <- container.getFeedRanges.block.asScala) {
+      val partitionRange = SparkBridgeInternal.getNormalizedEffectiveRange(
+        container,
+        feedRange
+      )
+
+      val relevantRanges = epkRangesForPartitionKeyValues
+        .filter(r => SparkBridgeImplementationInternal.doRangesOverlap(r, partitionRange))
+        .toArray
+
+      if (relevantRanges.length > 0) {
+
+        val min = getMaxString(relevantRanges(0).min, partitionRange.min)
+        val max = getMinString(relevantRanges.last.max, partitionRange.max)
+
+        epkRangesForContainer.add(
+          NormalizedRange(min, max)
+        )
+      }
+    }
+
+    epkRangesForContainer
   }
 
   private[this] def getMinString(left: String, right: String) = {
