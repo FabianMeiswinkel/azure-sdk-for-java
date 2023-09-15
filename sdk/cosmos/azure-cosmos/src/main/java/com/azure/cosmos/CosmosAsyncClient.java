@@ -698,7 +698,7 @@ public final class CosmosAsyncClient implements Closeable {
             null,
             OperationType.Create,
             ResourceType.Database,
-            this.getEffectiveDiagnosticsThresholds(requestOptions.getDiagnosticsThresholds()));
+            requestOptions);
     }
 
     private Mono<CosmosDatabaseResponse> createDatabaseInternal(Database database, CosmosDatabaseRequestOptions options,
@@ -719,7 +719,7 @@ public final class CosmosAsyncClient implements Closeable {
                 null,
                 OperationType.Create,
                 ResourceType.Database,
-                this.getEffectiveDiagnosticsThresholds(requestOptions.getDiagnosticsThresholds()));
+                requestOptions);
     }
 
     private ConsistencyLevel getEffectiveConsistencyLevel(
