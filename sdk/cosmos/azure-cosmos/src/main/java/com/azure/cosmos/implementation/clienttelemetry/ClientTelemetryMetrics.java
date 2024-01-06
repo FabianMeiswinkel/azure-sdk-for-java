@@ -295,8 +295,8 @@ public final class ClientTelemetryMetrics {
 
         if (metricTagNames.contains(TagName.Operation)) {
             String operationTagValue = !isPointOperation && !Strings.isNullOrWhiteSpace(operationId)
-                ? String.format("%s/%s/%s", resourceType, operationType, escape(operationId))
-                : String.format("%s/%s", resourceType, operationType);
+                ? resourceType + "/" + operationType + "/" + escape(operationId)
+                : resourceType + "/" + operationType;
 
             effectiveTags.add(Tag.of(TagName.Operation.toString(), operationTagValue));
         }
@@ -636,13 +636,13 @@ public final class ClientTelemetryMetrics {
             if (metricTagNames.contains(TagName.RequestStatusCode)) {
                 effectiveTags.add(Tag.of(
                     TagName.RequestStatusCode.toString(),
-                    String.format("%d/%d", statusCode, subStatusCode)));
+                    statusCode + "/" + subStatusCode));
             }
 
             if (metricTagNames.contains(TagName.RequestOperationType)) {
                 effectiveTags.add(Tag.of(
                     TagName.RequestOperationType.toString(),
-                    String.format("%s/%s", resourceType, operationType)));
+                    resourceType + "/" + operationType));
             }
 
             if (metricTagNames.contains(TagName.RegionName)) {
