@@ -57,7 +57,7 @@ private class PointWriter(container: CosmosAsyncContainer,
   )
 
   private val capturedFailure = new AtomicReference[Throwable]()
-  private val pendingPointWrites = new TrieMap[Future[Unit], Boolean]()
+  private val pendingPointWrites = new TrieMap[Future[Unit], () => Unit]()
   private val closed = new AtomicBoolean(false)
 
   private val diagnosticsContext: DiagnosticsContext = DiagnosticsContext(UUID.randomUUID(), "PointWriter")
@@ -106,8 +106,8 @@ private class PointWriter(container: CosmosAsyncContainer,
           return
         }
 
-        log.logInfo(s"flushAndClose invoked, $getThreadInfo")
-        log.logInfo(s"Pending tasks ${pendingPointWrites.size},$getThreadInfo")
+        log.logInfo(s"flushAndClose invoked, Context: ${taskDiagnosticsContext.toString} $getThreadInfo")
+        log.logInfo(s"Pending tasks ${pendingPointWrites.size}, Context: ${taskDiagnosticsContext.toString} $getThreadInfo")
 
         // TODO: better error handling here
         // Instead of waiting all operations to finish, if there is any exception signal, fail fast
@@ -134,12 +134,13 @@ private class PointWriter(container: CosmosAsyncContainer,
                                    objectNode: ObjectNode): Unit = {
 
     val promise = Promise[Unit]()
-    pendingPointWrites.put(promise.future, true)
 
     val createOperation = CreateOperation(taskDiagnosticsContext,
       CosmosItemIdentifier(objectNode.get(CosmosConstants.Properties.Id).asText(), partitionKeyValue))
 
-    executeAsync(() => createWithRetry(partitionKeyValue, objectNode, createOperation))
+    val ingestionAction = () => createWithRetry(partitionKeyValue, objectNode, createOperation)
+    pendingPointWrites.put(promise.future, ingestionAction)
+    executeAsync(ingestionAction)
       .onComplete {
         case Success(_) =>
           promise.success(Unit)
@@ -156,12 +157,12 @@ private class PointWriter(container: CosmosAsyncContainer,
   private def upsertWithRetryAsync(partitionKeyValue: PartitionKey,
                                    objectNode: ObjectNode): Unit = {
     val promise = Promise[Unit]()
-    pendingPointWrites.put(promise.future, true)
-
     val upsertOperation = UpsertOperation(taskDiagnosticsContext,
       CosmosItemIdentifier(objectNode.get(CosmosConstants.Properties.Id).asText(), partitionKeyValue))
 
-    executeAsync(() => upsertWithRetry(partitionKeyValue, objectNode, upsertOperation))
+    val ingestionAction = () => upsertWithRetry(partitionKeyValue, objectNode, upsertOperation)
+    pendingPointWrites.put(promise.future, ingestionAction)
+    executeAsync(ingestionAction)
       .onComplete {
         case Success(_) =>
           promise.success(Unit)
@@ -180,12 +181,13 @@ private class PointWriter(container: CosmosAsyncContainer,
                                    onlyIfNotModified: Boolean): Unit = {
 
     val promise = Promise[Unit]()
-    pendingPointWrites.put(promise.future, true)
-
     val deleteOperation = DeleteOperation(taskDiagnosticsContext,
       CosmosItemIdentifier(objectNode.get(CosmosConstants.Properties.Id).asText(), partitionKeyValue))
 
-    executeAsync(() => deleteWithRetry(partitionKeyValue, objectNode, onlyIfNotModified, deleteOperation))
+    val ingestionAction = () => deleteWithRetry(partitionKeyValue, objectNode, onlyIfNotModified, deleteOperation)
+    pendingPointWrites.put(promise.future, ingestionAction)
+
+    executeAsync(ingestionAction)
       .onComplete {
         case Success(_) =>
           promise.success(Unit)
@@ -202,12 +204,13 @@ private class PointWriter(container: CosmosAsyncContainer,
   private def patchWithRetryAsync(partitionKeyValue: PartitionKey,
                                   objectNode: ObjectNode): Unit = {
     val promise = Promise[Unit]()
-    pendingPointWrites.put(promise.future, true)
-
     val patchOperation = PatchOperation(taskDiagnosticsContext,
       CosmosItemIdentifier(objectNode.get(CosmosConstants.Properties.Id).asText(), partitionKeyValue))
+    val ingestionAction = () => patchWithRetry(partitionKeyValue, objectNode, patchOperation)
 
-    executeAsync(() => patchWithRetry(partitionKeyValue, objectNode, patchOperation))
+    pendingPointWrites.put(promise.future, ingestionAction)
+
+    executeAsync(ingestionAction)
      .onComplete {
        case Success(_) =>
          promise.success(Unit)
@@ -229,12 +232,13 @@ private class PointWriter(container: CosmosAsyncContainer,
   ): Unit = {
 
     val promise = Promise[Unit]()
-    pendingPointWrites.put(promise.future, true)
-
     val replaceOperation = ReplaceOperation(taskDiagnosticsContext,
       CosmosItemIdentifier(objectNode.get(CosmosConstants.Properties.Id).asText(), partitionKeyValue))
+    val ingestionAction = () => replaceIfNotModifiedWithRetry(partitionKeyValue, objectNode, etag, replaceOperation)
 
-    executeAsync(() => replaceIfNotModifiedWithRetry(partitionKeyValue, objectNode, etag, replaceOperation))
+    pendingPointWrites.put(promise.future, ingestionAction)
+
+    executeAsync(ingestionAction)
       .onComplete {
         case Success(_) =>
           promise.success(Unit)
