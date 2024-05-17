@@ -54,7 +54,7 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNo
  * Represents a base resource that can be serialized to JSON in the Azure Cosmos DB database service.
  */
 public class JsonSerializable {
-    private static final ObjectMapper OBJECT_MAPPER = Utils.getSimpleObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = Utils.getSimpleObjectMapper().;
     private static final Logger LOGGER = LoggerFactory.getLogger(JsonSerializable.class);
     transient ObjectNode propertyBag = null;
     private ObjectMapper om;
