@@ -6,6 +6,9 @@ import com.azure.core.credential.{TokenCredential, TokenRequestContext}
 import com.azure.cosmos.spark.{AccountDataResolver, CosmosAccessToken}
 import com.azure.identity.ManagedIdentityCredentialBuilder
 
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+
 // scalastyle:off underscore.import
 import scala.collection.JavaConverters._
 // scalastyle:on underscore.import
@@ -69,10 +72,15 @@ class ManagedIdentityAccountDataResolver extends AccountDataResolver with BasicL
         Some((tokenRequestContextStrings: List[String]) => {
           val tokenRequestContext = new TokenRequestContext
           tokenRequestContext.setScopes(tokenRequestContextStrings.asJava)
+          logInfo(s"TokenRequestContextStrings $tokenRequestContextStrings")
           val accessToken = tokenCredential
             .get
             .getToken(tokenRequestContext)
             .block()
+
+          // val tokenString = accessToken.getToken
+          // val base64=Base64.getEncoder.encodeToString(tokenString.getBytes(StandardCharsets.UTF_8));
+          // logInfo(s"Token $base64")
           CosmosAccessToken(accessToken.getToken, accessToken.getExpiresAt)
         })
       } else {
