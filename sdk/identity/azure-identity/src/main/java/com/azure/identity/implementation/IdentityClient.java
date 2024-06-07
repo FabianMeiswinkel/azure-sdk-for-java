@@ -28,6 +28,7 @@ import com.microsoft.aad.msal4j.DeviceCodeFlowParameters;
 import com.microsoft.aad.msal4j.IAccount;
 import com.microsoft.aad.msal4j.IAuthenticationResult;
 import com.microsoft.aad.msal4j.InteractiveRequestParameters;
+import com.microsoft.aad.msal4j.ManagedIdentityApplication;
 import com.microsoft.aad.msal4j.MsalInteractionRequiredException;
 import com.microsoft.aad.msal4j.PublicClientApplication;
 import com.microsoft.aad.msal4j.RefreshTokenParameters;
@@ -61,7 +62,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -78,6 +78,7 @@ public class IdentityClient extends IdentityClientBase {
 
     private final SynchronizedAccessor<ConfidentialClientApplication> confidentialClientApplicationAccessorWithCae;
     private final SynchronizedAccessor<ConfidentialClientApplication> managedIdentityConfidentialClientApplicationAccessor;
+    private final SynchronizedAccessor<ManagedIdentityApplication> managedIdentityMsalApplicationAccessor;
     private final SynchronizedAccessor<ConfidentialClientApplication> workloadIdentityConfidentialClientApplicationAccessor;
     private final SynchronizedAccessor<String> clientAssertionAccessor;
 
@@ -118,11 +119,24 @@ public class IdentityClient extends IdentityClientBase {
         this.managedIdentityConfidentialClientApplicationAccessor =
             new SynchronizedAccessor<>(this::getManagedIdentityConfidentialClientApplication);
 
+        this.managedIdentityMsalApplicationAccessor =
+            new SynchronizedAccessor<>(this::getManagedIdentityMsalClient);
+
         this.workloadIdentityConfidentialClientApplicationAccessor =
             new SynchronizedAccessor<>(this::getWorkloadIdentityConfidentialClientApplication);
 
         Duration cacheTimeout = (clientAssertionTimeout == null) ? Duration.ofMinutes(5) : clientAssertionTimeout;
         this.clientAssertionAccessor = new SynchronizedAccessor<>(this::parseClientAssertion, cacheTimeout);
+    }
+
+    public Mono<ManagedIdentityApplication> getManagedIdentityMsalClient() {
+        return Mono.defer(() -> {
+            try {
+                return Mono.just(this.getManagedIdentityMsalApplication());
+            } catch (RuntimeException e) {
+                return Mono.error(e);
+            }
+        });
     }
 
     private Mono<ConfidentialClientApplication> getConfidentialClientApplication(boolean enableCae) {
@@ -349,7 +363,6 @@ public class IdentityClient extends IdentityClientBase {
                 ? LoggingUtil.logCredentialUnavailableException(LOGGER, options, (CredentialUnavailableException) e)
                 : LOGGER.logExceptionAsError(e));
         }
-
     }
 
     /**
@@ -566,6 +579,29 @@ public class IdentityClient extends IdentityClientBase {
             .map(MsalToken::new);
     }
 
+    public Mono<AccessToken> authenticateWithManagedIdentityMsalClient(TokenRequestContext request) {
+        String resource = ScopeUtil.scopesToResource(request.getScopes()) + "/";
+
+        return Mono.fromSupplier(() -> options.isChained() && options.getManagedIdentityType().equals(ManagedIdentityType.VM))
+            .flatMap(shouldProbe -> shouldProbe ? checkIMDSAvailable(getImdsEndpoint()) : Mono.just(true))
+            .flatMap(ignored ->  getTokenFromMsalMIClient(resource));
+    }
+
+    private Mono<AccessToken> getTokenFromMsalMIClient(String resource) {
+        return managedIdentityMsalApplicationAccessor.getValue()
+            .flatMap(managedIdentityApplication -> Mono.fromFuture(() -> {
+                    com.microsoft.aad.msal4j.ManagedIdentityParameters.ManagedIdentityParametersBuilder builder =
+                        com.microsoft.aad.msal4j.ManagedIdentityParameters.builder(resource);
+                    try {
+                        return managedIdentityApplication.acquireTokenForManagedIdentity(builder.build());
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            )).onErrorMap(t -> new CredentialUnavailableException("Managed Identity authentication is not available.", t))
+            .map(MsalToken::new);
+    }
+
     public Mono<AccessToken> authenticateWithWorkloadIdentityConfidentialClient(TokenRequestContext request) {
         return workloadIdentityConfidentialClientApplicationAccessor.getValue()
             .flatMap(confidentialClient -> Mono.fromFuture(() -> {
@@ -611,48 +647,42 @@ public class IdentityClient extends IdentityClientBase {
     @SuppressWarnings("deprecation")
     public Mono<MsalToken> authenticateWithPublicClientCache(TokenRequestContext request, IAccount account) {
         return getPublicClientInstance(request).getValue()
-            .flatMap(pc -> Mono.fromFuture(() -> {
-                SilentParameters.SilentParametersBuilder parametersBuilder = SilentParameters.builder(
-                    new HashSet<>(request.getScopes()));
-
-                if (request.isCaeEnabled() && request.getClaims() != null) {
-                    ClaimsRequest customClaimRequest = CustomClaimRequest.formatAsClaimsRequest(request.getClaims());
-                    parametersBuilder.claims(customClaimRequest);
-                    parametersBuilder.forceRefresh(true);
-                }
-                if (account != null) {
-                    parametersBuilder = parametersBuilder.account(account);
-                }
-                parametersBuilder.tenant(
-                    IdentityUtil.resolveTenantId(tenantId, request, options));
-                try {
-                    return pc.acquireTokenSilently(parametersBuilder.build());
-                } catch (MalformedURLException e) {
-                    return getFailedCompletableFuture(LOGGER.logExceptionAsError(new RuntimeException(e)));
-                }
-            }).map(MsalToken::new)
+            .flatMap(pc -> Mono.fromFuture(() ->
+                acquireTokenFromPublicClientSilently(request, pc, account, false)
+            ).map(MsalToken::new)
                 .filter(t -> OffsetDateTime.now().isBefore(t.getExpiresAt().minus(REFRESH_OFFSET)))
-                .switchIfEmpty(Mono.fromFuture(() -> {
-                    SilentParameters.SilentParametersBuilder forceParametersBuilder = SilentParameters.builder(
-                        new HashSet<>(request.getScopes())).forceRefresh(true);
+                .switchIfEmpty(Mono.fromFuture(() ->
+                    acquireTokenFromPublicClientSilently(request, pc, account, true)
+                ).map(MsalToken::new))
+            );
+    }
 
-                    if (request.getClaims() != null) {
-                        ClaimsRequest customClaimRequest = CustomClaimRequest
-                                                               .formatAsClaimsRequest(request.getClaims());
-                        forceParametersBuilder.claims(customClaimRequest);
-                    }
+    private CompletableFuture<IAuthenticationResult> acquireTokenFromPublicClientSilently(TokenRequestContext request,
+        PublicClientApplication pc,
+        IAccount account,
+        boolean forceRefresh
+    ) {
+        SilentParameters.SilentParametersBuilder parametersBuilder = SilentParameters.builder(
+            new HashSet<>(request.getScopes()));
 
-                    if (account != null) {
-                        forceParametersBuilder = forceParametersBuilder.account(account);
-                    }
-                    forceParametersBuilder.tenant(
-                        IdentityUtil.resolveTenantId(tenantId, request, options));
-                    try {
-                        return pc.acquireTokenSilently(forceParametersBuilder.build());
-                    } catch (MalformedURLException e) {
-                        return getFailedCompletableFuture(LOGGER.logExceptionAsError(new RuntimeException(e)));
-                    }
-                }).map(MsalToken::new)));
+        if (forceRefresh) {
+            parametersBuilder.forceRefresh(true);
+        }
+        if (request.isCaeEnabled() && request.getClaims() != null) {
+            ClaimsRequest customClaimRequest = CustomClaimRequest.formatAsClaimsRequest(request.getClaims());
+            parametersBuilder.claims(customClaimRequest);
+            parametersBuilder.forceRefresh(true);
+        }
+        if (account != null) {
+            parametersBuilder = parametersBuilder.account(account);
+        }
+        parametersBuilder.tenant(
+            IdentityUtil.resolveTenantId(tenantId, request, options));
+        try {
+            return pc.acquireTokenSilently(parametersBuilder.build());
+        } catch (MalformedURLException e) {
+            return getFailedCompletableFuture(LOGGER.logExceptionAsError(new RuntimeException(e)));
+        }
     }
 
     private SynchronizedAccessor<PublicClientApplication> getPublicClientInstance(TokenRequestContext request) {
@@ -829,16 +859,37 @@ public class IdentityClient extends IdentityClientBase {
         } catch (URISyntaxException e) {
             return Mono.error(LOGGER.logExceptionAsError(new RuntimeException(e)));
         }
-        InteractiveRequestParameters.InteractiveRequestParametersBuilder builder =
-            buildInteractiveRequestParameters(request, loginHint, redirectUri);
 
-        SynchronizedAccessor<PublicClientApplication> publicClient = getPublicClientInstance(request);
+        // If the broker is enabled, try to get the token for the default account by passing
+        // a null account to MSAL. If that fails, show the dialog.
 
-        Mono<IAuthenticationResult> acquireToken = publicClient.getValue()
-                               .flatMap(pc -> Mono.fromFuture(() -> pc.acquireToken(builder.build())));
+        return getPublicClientInstance(request).getValue().flatMap(pc -> {
+            if (options.isBrokerEnabled() && options.useDefaultBrokerAccount()) {
+                return Mono.fromFuture(() ->
+                    acquireTokenFromPublicClientSilently(request, pc, null, false))
+                    // The error case here represents the silent acquisition failing. There's nothing actionable and
+                    // in this case the fallback path of showing the dialog will capture any meaningful error and share it.
+                    .onErrorResume(e -> Mono.empty());
+            } else {
+                return Mono.empty();
+            }
+        })
+        .switchIfEmpty(Mono.defer(() -> {
+            InteractiveRequestParameters.InteractiveRequestParametersBuilder builder =
+                buildInteractiveRequestParameters(request, loginHint, redirectUri);
 
-        return acquireToken.onErrorMap(t -> new ClientAuthenticationException(
-            "Failed to acquire token with Interactive Browser Authentication.", null, t)).map(MsalToken::new);
+            SynchronizedAccessor<PublicClientApplication> publicClient = getPublicClientInstance(request);
+
+            return publicClient.getValue()
+                .flatMap(pc -> Mono.fromFuture(() -> pc.acquireToken(builder.build())));
+
+        }))
+        // If we're already throwing a ClientAuthenticationException we don't need to wrap it again.
+        .onErrorMap(t -> !(t instanceof ClientAuthenticationException),
+                        t -> {
+                throw new ClientAuthenticationException("Failed to acquire token with Interactive Browser Authentication.", null, t);
+            })
+        .map(MsalToken::new);
     }
 
     /**
@@ -946,7 +997,7 @@ public class IdentityClient extends IdentityClientBase {
                 String secretKeyPath = realm.substring(separatorIndex + 1);
                 secretKey = new String(Files.readAllBytes(Paths.get(secretKeyPath)), StandardCharsets.UTF_8);
 
-            
+
                 if (connection != null) {
                     connection.disconnect();
                 }
@@ -1166,8 +1217,7 @@ public class IdentityClient extends IdentityClientBase {
             return Mono.error(exception);
         }
 
-        String endpoint = TRAILING_FORWARD_SLASHES.matcher(options.getImdsAuthorityHost()).replaceAll("")
-            + IdentityConstants.DEFAULT_IMDS_TOKENPATH;
+        String endpoint = getImdsEndpoint();
 
         return checkIMDSAvailable(endpoint).flatMap(available -> Mono.fromCallable(() -> {
             int retry = 1;
@@ -1222,8 +1272,7 @@ public class IdentityClient extends IdentityClientBase {
                             || responseCode == 429
                             || responseCode == 404
                             || (responseCode >= 500 && responseCode <= 599)) {
-                        int retryTimeoutInMs = options.getRetryTimeout()
-                                .apply(Duration.ofSeconds(ThreadLocalRandom.current().nextInt(retry))).getNano() / 1000;
+                        int retryTimeoutInMs = getRetryTimeoutInMs(retry);
                         // Error code 410 indicates IMDS upgrade is in progress, which can take up to 70s
                         //
                         retryTimeoutInMs =
@@ -1252,6 +1301,16 @@ public class IdentityClient extends IdentityClientBase {
         }));
     }
 
+    private String getImdsEndpoint() {
+        return TRAILING_FORWARD_SLASHES.matcher(options.getImdsAuthorityHost()).replaceAll("")
+            + IdentityConstants.DEFAULT_IMDS_TOKENPATH;
+    }
+
+    int getRetryTimeoutInMs(int retry) {
+        return (int) options.getRetryTimeout()
+            .apply(Duration.ofSeconds(retry)).toMillis();
+    }
+
     private Mono<Boolean> checkIMDSAvailable(String endpoint) {
         return Mono.fromCallable(() -> {
             HttpURLConnection connection = null;
@@ -1260,7 +1319,7 @@ public class IdentityClient extends IdentityClientBase {
             try {
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
-                connection.setConnectTimeout(500);
+                connection.setConnectTimeout(1000);
                 connection.connect();
             } catch (Exception e) {
                 throw LoggingUtil.logCredentialUnavailableException(LOGGER, options,

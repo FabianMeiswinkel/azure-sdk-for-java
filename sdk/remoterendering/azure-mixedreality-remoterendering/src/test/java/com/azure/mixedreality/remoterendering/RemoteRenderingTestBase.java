@@ -41,7 +41,7 @@ public class RemoteRenderingTestBase extends TestProxyTestBase {
     private final String serviceEndpoint = Configuration.getGlobalConfiguration().get("REMOTERENDERING_ARR_SERVICE_ENDPOINT");
 
     // NOT REAL ACCOUNT DETAILS
-    private final String playbackAccountId = "f5b3e69f-1e1b-46a5-a718-aea58a7a0f8e";
+    private final String playbackAccountId = "40831821-9a8b-4f81-b85f-018809a1f727";
     private final String playbackAccountDomain = "mixedreality.azure.com";
     private final String playbackAccountKey = "Sanitized";
     private final String playbackStorageAccountName = "sdkTest";
@@ -80,6 +80,10 @@ public class RemoteRenderingTestBase extends TestProxyTestBase {
             interceptorManager.addMatchers(customMatchers);
         }
 
+        if (!interceptorManager.isLiveMode()) {
+            // Remove `operation-location`, `id` and `name` sanitizers from the list of common sanitizers.
+            interceptorManager.removeSanitizers("AZSDK2030", "AZSDK3430");
+        }
         return new HttpPipelineBuilder()
             .policies(policies.toArray(new HttpPipelinePolicy[0]))
             .httpClient(interceptorManager.isPlaybackMode() ? interceptorManager.getPlaybackClient() : httpClient)

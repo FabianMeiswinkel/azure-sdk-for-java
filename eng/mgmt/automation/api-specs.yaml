@@ -11,6 +11,8 @@ authorization:
   suffix: generated
 azure-kusto:
   service: kusto
+azurelargeinstance:
+  service: largeinstance
 cdn:
   suffix: generated
 compute:
@@ -58,8 +60,12 @@ help:
   service: selfhelp
 hybridaks:
   service: hybridcontainerservice
+informatica:
+  service: informaticadatamanagement
 keyvault:
   suffix: generated
+liftrastronomer:
+  service: astro
 liftrqumulo:
   service: qumulo
 loadtestservice:
@@ -76,8 +82,12 @@ network:
   suffix: generated
 newrelic:
   service: newrelicobservability
+offazurespringboot:
+  service: springappdiscovery
 operationalinsights:
   service: loganalytics
+oracle:
+  service: oracledatabase
 paloaltonetworks:
   suffix: ngfw
 postgresql:
@@ -109,3 +119,7 @@ vmware:
 web:
   service: appservice
   suffix: generated
+workloads/Microsoft.Workloads/SAPDiscoverySites:
+  service: migrationdiscoverysap
+workloads/Microsoft.Workloads/SAPVirtualInstance:
+  service: workloadssapvirtualinstance

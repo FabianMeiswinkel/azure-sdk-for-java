@@ -24,12 +24,14 @@ import com.azure.core.util.CoreUtils;
 import com.azure.core.util.UrlBuilder;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.resourcemanager.appservice.AppServiceManager;
+import com.azure.resourcemanager.appservice.fluent.models.ConnectionStringDictionaryInner;
 import com.azure.resourcemanager.appservice.fluent.models.HostKeysInner;
 import com.azure.resourcemanager.appservice.fluent.models.SiteConfigInner;
 import com.azure.resourcemanager.appservice.fluent.models.SiteConfigResourceInner;
 import com.azure.resourcemanager.appservice.fluent.models.SiteInner;
 import com.azure.resourcemanager.appservice.fluent.models.SiteLogsConfigInner;
 import com.azure.resourcemanager.appservice.fluent.models.SitePatchResourceInner;
+import com.azure.resourcemanager.appservice.fluent.models.StringDictionaryInner;
 import com.azure.resourcemanager.appservice.models.AppServicePlan;
 import com.azure.resourcemanager.appservice.models.AppSetting;
 import com.azure.resourcemanager.appservice.models.FunctionApp;
@@ -59,10 +61,12 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /** The implementation for FunctionApp. */
@@ -414,7 +418,17 @@ class FunctionAppImpl
     @Override
     public FunctionAppImpl withPrivateRegistryImage(String imageAndTag, String serverUrl) {
         ensureLinuxPlan();
-        return super.withPrivateRegistryImage(imageAndTag, serverUrl);
+        super.withPrivateRegistryImage(imageAndTag, serverUrl);
+        if (isFunctionAppOnACA()) {
+            try {
+                URL url = new URL(serverUrl);
+                // remove URL protocol, as ACA don't allow that
+                withAppSetting(SETTING_REGISTRY_SERVER, url.getAuthority() + url.getFile());
+            } catch (MalformedURLException e) {
+                // NO-OP, server url is not in URL format
+            }
+        }
+        return this;
     }
 
     @Override
@@ -645,6 +659,15 @@ class FunctionAppImpl
             siteConfigInner.withLinuxFxVersion(this.siteConfig.linuxFxVersion());
             siteConfigInner.withMinimumElasticInstanceCount(this.siteConfig.minimumElasticInstanceCount());
             siteConfigInner.withFunctionAppScaleLimit(this.siteConfig.functionAppScaleLimit());
+            siteConfigInner.withAppSettings(this.siteConfig.appSettings() == null ? new ArrayList<>() : this.siteConfig.appSettings());
+            if (!appSettingsToAdd.isEmpty() || !appSettingsToRemove.isEmpty()) {
+                for (String settingToRemove : appSettingsToRemove) {
+                    siteConfigInner.appSettings().removeIf(kvPair -> Objects.equals(settingToRemove, kvPair.name()));
+                }
+                for (Map.Entry<String, String> entry : appSettingsToAdd.entrySet()) {
+                    siteConfigInner.appSettings().add(new NameValuePair().withName(entry.getKey()).withValue(entry.getValue()));
+                }
+            }
             this.innerModel().withSiteConfig(siteConfigInner);
         }
     }
@@ -678,6 +701,9 @@ class FunctionAppImpl
         this.innerModel().withManagedEnvironmentId(managedEnvironmentId);
         if (!CoreUtils.isNullOrEmpty(managedEnvironmentId)) {
             this.innerModel().withKind("functionapp,linux,container,azurecontainerapps");
+            if (this.siteConfig == null) {
+                this.siteConfig = new SiteConfigResourceInner().withAppSettings(new ArrayList<>());
+            }
         }
         return this;
     }
@@ -730,12 +756,52 @@ class FunctionAppImpl
      *
      * @return whether this Function App is on Azure Container Apps environment
      */
-    private boolean isFunctionAppOnACA() {
+    boolean isFunctionAppOnACA() {
         return isFunctionAppOnACA(innerModel());
     }
 
     static boolean isFunctionAppOnACA(SiteInner siteInner) {
         return siteInner != null && !CoreUtils.isNullOrEmpty(siteInner.managedEnvironmentId());
+    }
+
+    @Override
+    Mono<SiteInner> updateInner(SitePatchResourceInner siteUpdate) {
+        Mono<SiteInner> updateInner = super.updateInner(siteUpdate);
+        if (isFunctionAppOnACA()) {
+            return RetryUtils.backoffRetryForFunctionAppAca(updateInner);
+        } else {
+            return updateInner;
+        }
+    }
+
+    @Override
+    Mono<SiteConfigResourceInner> createOrUpdateSiteConfig(SiteConfigResourceInner siteConfig) {
+        Mono<SiteConfigResourceInner> createOrUpdateSiteConfig = super.createOrUpdateSiteConfig(siteConfig);
+        if (isFunctionAppOnACA()) {
+            return RetryUtils.backoffRetryForFunctionAppAca(createOrUpdateSiteConfig);
+        } else {
+            return createOrUpdateSiteConfig;
+        }
+    }
+
+    @Override
+    Mono<StringDictionaryInner> updateAppSettings(StringDictionaryInner inner) {
+        Mono<StringDictionaryInner> updateAppSettings = super.updateAppSettings(inner);
+        if (isFunctionAppOnACA()) {
+            return RetryUtils.backoffRetryForFunctionAppAca(updateAppSettings);
+        } else {
+            return updateAppSettings;
+        }
+    }
+
+    @Override
+    Mono<ConnectionStringDictionaryInner> updateConnectionStrings(ConnectionStringDictionaryInner inner) {
+        Mono<ConnectionStringDictionaryInner> updateConnectionStrings = super.updateConnectionStrings(inner);
+        if (isFunctionAppOnACA()) {
+            return RetryUtils.backoffRetryForFunctionAppAca(updateConnectionStrings);
+        } else {
+            return updateConnectionStrings;
+        }
     }
 
     @Host("{$host}")

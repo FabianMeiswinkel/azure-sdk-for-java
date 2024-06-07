@@ -25,12 +25,6 @@ public final class VolumeBackupProperties {
     private Boolean policyEnforced;
 
     /*
-     * Backup Enabled
-     */
-    @JsonProperty(value = "backupEnabled")
-    private Boolean backupEnabled;
-
-    /*
      * Backup Vault Resource ID
      */
     @JsonProperty(value = "backupVaultId")
@@ -79,26 +73,6 @@ public final class VolumeBackupProperties {
      */
     public VolumeBackupProperties withPolicyEnforced(Boolean policyEnforced) {
         this.policyEnforced = policyEnforced;
-        return this;
-    }
-
-    /**
-     * Get the backupEnabled property: Backup Enabled.
-     * 
-     * @return the backupEnabled value.
-     */
-    public Boolean backupEnabled() {
-        return this.backupEnabled;
-    }
-
-    /**
-     * Set the backupEnabled property: Backup Enabled.
-     * 
-     * @param backupEnabled the backupEnabled value to set.
-     * @return the VolumeBackupProperties object itself.
-     */
-    public VolumeBackupProperties withBackupEnabled(Boolean backupEnabled) {
-        this.backupEnabled = backupEnabled;
         return this;
     }
 

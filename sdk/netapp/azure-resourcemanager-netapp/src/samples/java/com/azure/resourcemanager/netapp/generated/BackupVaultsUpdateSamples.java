@@ -13,9 +13,7 @@ import java.util.Map;
  */
 public final class BackupVaultsUpdateSamples {
     /*
-     * x-ms-original-file:
-     * specification/netapp/resource-manager/Microsoft.NetApp/preview/2023-05-01-preview/examples/BackupVaults_Update.
-     * json
+     * x-ms-original-file: specification/netapp/resource-manager/Microsoft.NetApp/stable/2023-11-01/examples/BackupVaults_Update.json
      */
     /**
      * Sample code: BackupVaults_Update.
@@ -24,7 +22,8 @@ public final class BackupVaultsUpdateSamples {
      */
     public static void backupVaultsUpdate(com.azure.resourcemanager.netapp.NetAppFilesManager manager) {
         BackupVault resource = manager.backupVaults()
-            .getWithResponse("myRG", "account1", "backupVault1", com.azure.core.util.Context.NONE).getValue();
+            .getWithResponse("myRG", "account1", "backupVault1", com.azure.core.util.Context.NONE)
+            .getValue();
         resource.update().withTags(mapOf("Tag1", "Value1")).apply();
     }
 

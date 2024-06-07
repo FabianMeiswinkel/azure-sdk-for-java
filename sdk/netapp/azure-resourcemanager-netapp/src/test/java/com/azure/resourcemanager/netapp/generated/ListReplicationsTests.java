@@ -16,23 +16,37 @@ public final class ListReplicationsTests {
     @org.junit.jupiter.api.Test
     public void testDeserialize() throws Exception {
         ListReplications model = BinaryData.fromString(
-            "{\"value\":[{\"endpointType\":\"src\",\"replicationSchedule\":\"hourly\",\"remoteVolumeResourceId\":\"sytgadgvraea\",\"remoteVolumeRegion\":\"e\"}]}")
+            "{\"value\":[{\"endpointType\":\"dst\",\"replicationSchedule\":\"daily\",\"remoteVolumeResourceId\":\"ciqibrhosx\",\"remoteVolumeRegion\":\"qrhzoymibmrqyib\"},{\"endpointType\":\"src\",\"replicationSchedule\":\"daily\",\"remoteVolumeResourceId\":\"uszdtmhrkwof\",\"remoteVolumeRegion\":\"voqacpiexpbt\"},{\"endpointType\":\"src\",\"replicationSchedule\":\"hourly\",\"remoteVolumeResourceId\":\"oenwashr\",\"remoteVolumeRegion\":\"tkcnqxwb\"},{\"endpointType\":\"dst\",\"replicationSchedule\":\"_10minutely\",\"remoteVolumeResourceId\":\"pi\",\"remoteVolumeRegion\":\"waasip\"}]}")
             .toObject(ListReplications.class);
-        Assertions.assertEquals(EndpointType.SRC, model.value().get(0).endpointType());
-        Assertions.assertEquals(ReplicationSchedule.HOURLY, model.value().get(0).replicationSchedule());
-        Assertions.assertEquals("sytgadgvraea", model.value().get(0).remoteVolumeResourceId());
-        Assertions.assertEquals("e", model.value().get(0).remoteVolumeRegion());
+        Assertions.assertEquals(EndpointType.DST, model.value().get(0).endpointType());
+        Assertions.assertEquals(ReplicationSchedule.DAILY, model.value().get(0).replicationSchedule());
+        Assertions.assertEquals("ciqibrhosx", model.value().get(0).remoteVolumeResourceId());
+        Assertions.assertEquals("qrhzoymibmrqyib", model.value().get(0).remoteVolumeRegion());
     }
 
     @org.junit.jupiter.api.Test
     public void testSerialize() throws Exception {
-        ListReplications model = new ListReplications().withValue(Arrays.asList(new ReplicationInner()
-            .withEndpointType(EndpointType.SRC).withReplicationSchedule(ReplicationSchedule.HOURLY)
-            .withRemoteVolumeResourceId("sytgadgvraea").withRemoteVolumeRegion("e")));
+        ListReplications model = new ListReplications().withValue(Arrays.asList(
+            new ReplicationInner().withEndpointType(EndpointType.DST)
+                .withReplicationSchedule(ReplicationSchedule.DAILY)
+                .withRemoteVolumeResourceId("ciqibrhosx")
+                .withRemoteVolumeRegion("qrhzoymibmrqyib"),
+            new ReplicationInner().withEndpointType(EndpointType.SRC)
+                .withReplicationSchedule(ReplicationSchedule.DAILY)
+                .withRemoteVolumeResourceId("uszdtmhrkwof")
+                .withRemoteVolumeRegion("voqacpiexpbt"),
+            new ReplicationInner().withEndpointType(EndpointType.SRC)
+                .withReplicationSchedule(ReplicationSchedule.HOURLY)
+                .withRemoteVolumeResourceId("oenwashr")
+                .withRemoteVolumeRegion("tkcnqxwb"),
+            new ReplicationInner().withEndpointType(EndpointType.DST)
+                .withReplicationSchedule(ReplicationSchedule.ONE_ZEROMINUTELY)
+                .withRemoteVolumeResourceId("pi")
+                .withRemoteVolumeRegion("waasip")));
         model = BinaryData.fromObject(model).toObject(ListReplications.class);
-        Assertions.assertEquals(EndpointType.SRC, model.value().get(0).endpointType());
-        Assertions.assertEquals(ReplicationSchedule.HOURLY, model.value().get(0).replicationSchedule());
-        Assertions.assertEquals("sytgadgvraea", model.value().get(0).remoteVolumeResourceId());
-        Assertions.assertEquals("e", model.value().get(0).remoteVolumeRegion());
+        Assertions.assertEquals(EndpointType.DST, model.value().get(0).endpointType());
+        Assertions.assertEquals(ReplicationSchedule.DAILY, model.value().get(0).replicationSchedule());
+        Assertions.assertEquals("ciqibrhosx", model.value().get(0).remoteVolumeResourceId());
+        Assertions.assertEquals("qrhzoymibmrqyib", model.value().get(0).remoteVolumeRegion());
     }
 }

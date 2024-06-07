@@ -90,6 +90,7 @@ public class ContainerRegistryClientsTestBase extends TestProxyTestBase {
             sanitizers.add(new TestProxySanitizer("WWW-Authenticate", "service=\\u0022(?<service>[^\\u0022]+)\\u0022", "REDACTED", TestProxySanitizerType.HEADER).setGroupForReplace("service"));
 
             interceptorManager.addSanitizers(sanitizers);
+            interceptorManager.removeSanitizers("AZSDK3493", "AZSDK2003");
         }
     }
 
@@ -132,7 +133,7 @@ public class ContainerRegistryClientsTestBase extends TestProxyTestBase {
             .endpoint(getEndpoint(endpoint))
             .repositoryName(repositoryName)
             .httpClient(interceptorManager.isPlaybackMode() ? interceptorManager.getPlaybackClient() : httpClient)
-            .httpLogOptions(new HttpLogOptions().setLogLevel(HttpLogDetailLevel.BODY_AND_HEADERS)
+            .httpLogOptions(new HttpLogOptions().setLogLevel(HttpLogDetailLevel.HEADERS)
                 .addAllowedHeaderName("Docker-Content-Digest")
                 .addAllowedHeaderName("Range")
                 .addAllowedHeaderName("Location")

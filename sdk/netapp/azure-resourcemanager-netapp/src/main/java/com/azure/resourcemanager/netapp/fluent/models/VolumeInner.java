@@ -288,7 +288,7 @@ public final class VolumeInner extends Resource {
     /**
      * Get the snapshotId property: Snapshot ID
      * 
-     * UUID v4 or resource identifier used to identify the Snapshot.
+     * Resource identifier used to identify the Snapshot.
      * 
      * @return the snapshotId value.
      */
@@ -299,7 +299,7 @@ public final class VolumeInner extends Resource {
     /**
      * Set the snapshotId property: Snapshot ID
      * 
-     * UUID v4 or resource identifier used to identify the Snapshot.
+     * Resource identifier used to identify the Snapshot.
      * 
      * @param snapshotId the snapshotId value to set.
      * @return the VolumeInner object itself.
@@ -340,7 +340,7 @@ public final class VolumeInner extends Resource {
     /**
      * Get the backupId property: Backup ID
      * 
-     * UUID v4 or resource identifier used to identify the Backup.
+     * Resource identifier used to identify the Backup.
      * 
      * @return the backupId value.
      */
@@ -351,7 +351,7 @@ public final class VolumeInner extends Resource {
     /**
      * Set the backupId property: Backup ID
      * 
-     * UUID v4 or resource identifier used to identify the Backup.
+     * Resource identifier used to identify the Backup.
      * 
      * @param backupId the backupId value to set.
      * @return the VolumeInner object itself.
@@ -462,7 +462,7 @@ public final class VolumeInner extends Resource {
 
     /**
      * Get the volumeType property: What type of volume is this. For destination volumes in Cross Region Replication,
-     * set type to DataProtection. For creating clone volume, set type to ShortTermClone.
+     * set type to DataProtection.
      * 
      * @return the volumeType value.
      */
@@ -472,7 +472,7 @@ public final class VolumeInner extends Resource {
 
     /**
      * Set the volumeType property: What type of volume is this. For destination volumes in Cross Region Replication,
-     * set type to DataProtection. For creating clone volume, set type to ShortTermClone.
+     * set type to DataProtection.
      * 
      * @param volumeType the volumeType value to set.
      * @return the VolumeInner object itself.
@@ -586,8 +586,8 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Get the securityStyle property: The security style of volume, default unix, defaults to ntfs for dual protocol
-     * or CIFS protocol.
+     * Get the securityStyle property: The security style of volume, default unix, defaults to ntfs for dual protocol or
+     * CIFS protocol.
      * 
      * @return the securityStyle value.
      */
@@ -596,8 +596,8 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Set the securityStyle property: The security style of volume, default unix, defaults to ntfs for dual protocol
-     * or CIFS protocol.
+     * Set the securityStyle property: The security style of volume, default unix, defaults to ntfs for dual protocol or
+     * CIFS protocol.
      * 
      * @param securityStyle the securityStyle value to set.
      * @return the VolumeInner object itself.
@@ -873,9 +873,9 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Get the coolAccessRetrievalPolicy property: coolAccessRetrievalPolicy determines the data retrieval behavior
-     * from the cool tier to standard storage based on the read pattern for cool access enabled volumes. The possible
-     * values for this field are:
+     * Get the coolAccessRetrievalPolicy property: coolAccessRetrievalPolicy determines the data retrieval behavior from
+     * the cool tier to standard storage based on the read pattern for cool access enabled volumes. The possible values
+     * for this field are:
      * Default - Data will be pulled from cool tier to standard storage on random reads. This policy is the default.
      * OnRead - All client-driven data read is pulled from cool tier to standard storage on both sequential and random
      * reads.
@@ -888,9 +888,9 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Set the coolAccessRetrievalPolicy property: coolAccessRetrievalPolicy determines the data retrieval behavior
-     * from the cool tier to standard storage based on the read pattern for cool access enabled volumes. The possible
-     * values for this field are:
+     * Set the coolAccessRetrievalPolicy property: coolAccessRetrievalPolicy determines the data retrieval behavior from
+     * the cool tier to standard storage based on the read pattern for cool access enabled volumes. The possible values
+     * for this field are:
      * Default - Data will be pulled from cool tier to standard storage on random reads. This policy is the default.
      * OnRead - All client-driven data read is pulled from cool tier to standard storage on both sequential and random
      * reads.
@@ -1090,8 +1090,7 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Get the capacityPoolResourceId property: Pool Resource Id used in case of creating a volume through volume
-     * group.
+     * Get the capacityPoolResourceId property: Pool Resource Id used in case of creating a volume through volume group.
      * 
      * @return the capacityPoolResourceId value.
      */
@@ -1100,8 +1099,7 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Set the capacityPoolResourceId property: Pool Resource Id used in case of creating a volume through volume
-     * group.
+     * Set the capacityPoolResourceId property: Pool Resource Id used in case of creating a volume through volume group.
      * 
      * @param capacityPoolResourceId the capacityPoolResourceId value to set.
      * @return the VolumeInner object itself.
@@ -1282,25 +1280,14 @@ public final class VolumeInner extends Resource {
     }
 
     /**
-     * Get the inheritedSizeInBytes property: inheritedSizeInBytes
-     * 
-     * Space shared by short term clone volume with parent volume in bytes.
-     * 
-     * @return the inheritedSizeInBytes value.
-     */
-    public Long inheritedSizeInBytes() {
-        return this.innerProperties() == null ? null : this.innerProperties().inheritedSizeInBytes();
-    }
-
-    /**
      * Validates the instance.
      * 
      * @throws IllegalArgumentException thrown if the instance is not valid.
      */
     public void validate() {
         if (innerProperties() == null) {
-            throw LOGGER.logExceptionAsError(
-                new IllegalArgumentException("Missing required property innerProperties in model VolumeInner"));
+            throw LOGGER.atError()
+                .log(new IllegalArgumentException("Missing required property innerProperties in model VolumeInner"));
         } else {
             innerProperties().validate();
         }

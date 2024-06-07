@@ -52,8 +52,9 @@ public final class BackupsMigrationRequest {
      */
     public void validate() {
         if (backupVaultId() == null) {
-            throw LOGGER.logExceptionAsError(new IllegalArgumentException(
-                "Missing required property backupVaultId in model BackupsMigrationRequest"));
+            throw LOGGER.atError()
+                .log(new IllegalArgumentException(
+                    "Missing required property backupVaultId in model BackupsMigrationRequest"));
         }
     }
 

@@ -1,6 +1,6 @@
 # Release History
 
-## 2.35.0-beta.1 (Unreleased)
+## 2.40.0-beta.1 (Unreleased)
 
 ### Features Added
 
@@ -10,7 +10,47 @@
 
 ### Other Changes
 
-## 2.34.0 (2023-12-22)
+## 2.39.0 (2024-05-24)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.39.0-beta.1 (2024-05-15)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated `api-version` to `composite-v5`.
+
+## 2.38.0 (2024-04-16)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.37.0 (2024-03-22)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.36.0 (2024-02-29)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.35.0 (2024-01-26)
 
 ### Other Changes
 
@@ -21,6 +61,14 @@
 ## 2.34.0-beta.1 (2023-12-25)
 
 - Preview release for `api-version` `2023-05-01-preview`.
+
+## 2.34.0 (2023-12-22)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
 
 ## 2.33.0 (2023-11-24)
 

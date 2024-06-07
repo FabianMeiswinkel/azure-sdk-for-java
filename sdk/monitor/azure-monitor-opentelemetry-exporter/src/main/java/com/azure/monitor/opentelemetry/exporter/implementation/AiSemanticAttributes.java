@@ -6,7 +6,7 @@ package com.azure.monitor.opentelemetry.exporter.implementation;
 import io.opentelemetry.api.common.AttributeKey;
 
 import static io.opentelemetry.api.common.AttributeKey.booleanKey;
-import static io.opentelemetry.api.common.AttributeKey.longKey;
+import static io.opentelemetry.api.common.AttributeKey.doubleKey;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 public final class AiSemanticAttributes {
@@ -48,8 +48,8 @@ public final class AiSemanticAttributes {
     public static final AttributeKey<String> OPERATION_NAME =
         stringKey("applicationinsights.internal.operation_name");
 
-    public static final AttributeKey<Long> ITEM_COUNT =
-        longKey("applicationinsights.internal.item_count");
+    public static final AttributeKey<Double> SAMPLE_RATE =
+        doubleKey("applicationinsights.internal.sample_rate");
 
     // marks whether a request is coming from a "real" user, or a "synthetic" user (e.g. a bot or
     // health check)
@@ -96,6 +96,9 @@ public final class AiSemanticAttributes {
 
     public static final AttributeKey<Boolean> IS_PRE_AGGREGATED =
         AttributeKey.booleanKey("applicationinsights.internal.is_pre_aggregated");
+
+    public static final AttributeKey<String> LOGGED_EXCEPTION =
+        AttributeKey.stringKey("applicationinsights.internal.logged_exception");
 
     // These attributes are specific for Azure Function and are added to Application Insights traces'
     // custom dimensions. When Azure Function host starts suppressing the same logs to Application
