@@ -79,9 +79,13 @@ public final class CosmosDiagnosticsContext {
 
     private Double samplingRateSnapshot;
 
+    private boolean isSampledOut;
+
     private ArrayList<CosmosDiagnosticsRequestInfo> requestInfo = null;
 
     private final Integer sequenceNumber;
+
+    private String queryStatement;
 
     CosmosDiagnosticsContext(
         String spanName,
@@ -98,7 +102,8 @@ public final class CosmosDiagnosticsContext {
         String trackingId,
         String connectionMode,
         String userAgent,
-        Integer sequenceNumber) {
+        Integer sequenceNumber,
+        String queryStatement) {
 
         checkNotNull(spanName, "Argument 'spanName' must not be null.");
         checkNotNull(accountName, "Argument 'accountName' must not be null.");
@@ -128,6 +133,8 @@ public final class CosmosDiagnosticsContext {
         this.userAgent = userAgent;
         this.connectionMode = connectionMode;
         this.sequenceNumber = sequenceNumber;
+        this.isSampledOut = false;
+        this.queryStatement = queryStatement;
     }
 
     /**
@@ -251,6 +258,14 @@ public final class CosmosDiagnosticsContext {
      */
     String getSpanName() {
         return this.spanName;
+    }
+    
+    /**
+     * The query statement send by client 
+     * @return the query statement
+     */
+    public String getQueryStatement() {
+        return this.queryStatement;
     }
 
     /**
@@ -556,13 +571,18 @@ public final class CosmosDiagnosticsContext {
         }
     }
 
-    void setSamplingRateSnapshot(double samplingRate) {
+    void setSamplingRateSnapshot(double samplingRate, boolean isSampledOut) {
         synchronized (this.spanName) {
             this.samplingRateSnapshot = samplingRate;
+            this.isSampledOut = isSampledOut;
             for (CosmosDiagnostics d : this.diagnostics) {
                 diagAccessor.setSamplingRateSnapshot(d, samplingRate);
             }
         }
+    }
+
+    boolean isSampledOut() {
+        return this.isSampledOut;
     }
 
     String getRequestDiagnostics() {
@@ -601,7 +621,11 @@ public final class CosmosDiagnosticsContext {
         if (this.actualItemCount.get() >= 0) {
             ctxNode.put("actualItems", this.actualItemCount.get());
         }
-
+        
+        if (this.queryStatement != null && queryStatement.length() > 0) {
+            ctxNode.put("queryStatement", this.queryStatement);
+        }
+        
         if (this.finalError != null) {
             if (this.finalError instanceof CosmosException) {
                 ctxNode.put("exception", ((CosmosException)this.finalError).toString(false));
@@ -906,7 +930,8 @@ public final class CosmosDiagnosticsContext {
                                                            ConsistencyLevel consistencyLevel, Integer maxItemCount,
                                                            CosmosDiagnosticsThresholds thresholds, String trackingId,
                                                            String connectionMode, String userAgent,
-                                                           Integer sequenceNumber) {
+                                                           Integer sequenceNumber,
+                                                           String queryStatement) {
 
                         return new CosmosDiagnosticsContext(
                             spanName,
@@ -923,7 +948,9 @@ public final class CosmosDiagnosticsContext {
                             trackingId,
                             connectionMode,
                             userAgent,
-                            sequenceNumber);
+                            sequenceNumber,
+                            queryStatement
+                            );
                     }
 
                     @Override
@@ -1014,9 +1041,9 @@ public final class CosmosDiagnosticsContext {
                     }
 
                     @Override
-                    public void setSamplingRateSnapshot(CosmosDiagnosticsContext ctx, double samplingRate) {
+                    public void setSamplingRateSnapshot(CosmosDiagnosticsContext ctx, double samplingRate, boolean isSampledOut) {
                         checkNotNull(ctx, "Argument 'ctx' must not be null.");
-                        ctx.setSamplingRateSnapshot(samplingRate);
+                        ctx.setSamplingRateSnapshot(samplingRate, isSampledOut);
                     }
 
                     @Override
@@ -1034,6 +1061,12 @@ public final class CosmosDiagnosticsContext {
                         }
 
                         return true;
+                    }
+
+                    @Override
+                    public String getQueryStatement(CosmosDiagnosticsContext ctx) {
+                        checkNotNull(ctx, "Argument 'ctx' must not be null.");
+                        return ctx.getQueryStatement();
                     }
                 });
     }

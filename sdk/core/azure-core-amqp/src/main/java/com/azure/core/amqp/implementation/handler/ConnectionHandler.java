@@ -37,7 +37,23 @@ import static com.azure.core.amqp.implementation.ClientConstants.HOSTNAME_KEY;
  * Creates an AMQP connection using sockets.
  */
 public class ConnectionHandler extends Handler {
+    /**
+     * Gets the secure AMQP (amqps) port. The standard AMQP port number that has been assigned by IANA for secure
+     * TCP using TLS.
+     * When using <b>secure</b> AMQP, the TCP connection is first overlaid with TLS before entering the AMQP protocol
+     * handshake.
+     *
+     * @see <a href="https://learn.microsoft.com/azure/service-bus-messaging/service-bus-amqp-protocol-guide">
+     *     Connections and sessions</a>
+     */
     public static final int AMQPS_PORT = 5671;
+    /**
+     * Gets the AMQP (amqp) port.  The standard AMQP port number that has been assigned by IANA for TCP, UDP, and SCTP.
+     * Currently, there is no mapping for UDP nor SCTP.
+     * When using AMQP, the TCP connection does not, initially, need to be overlaid with TLS, whereby the server
+     * immediately <b>offers a mandatory upgrade of connection</b> to TLS using the AMQP-prescribed model.
+     */
+    public static final int AMQP_PORT = 5672;
 
     static final Symbol PRODUCT = Symbol.valueOf("product");
     static final Symbol VERSION = Symbol.valueOf("version");
@@ -58,20 +74,10 @@ public class ConnectionHandler extends Handler {
      *
      * @param connectionId Identifier for this connection.
      * @param connectionOptions Options used when creating the AMQP connection.
-     * @deprecated use {@link ConnectionHandler#ConnectionHandler(String, ConnectionOptions, SslPeerDetails, AmqpMetricsProvider)} instead.
-     */
-    @Deprecated
-    public ConnectionHandler(final String connectionId, final ConnectionOptions connectionOptions,
-                             SslPeerDetails peerDetails) {
-        this(connectionId, connectionOptions, peerDetails,
-            new AmqpMetricsProvider(null, connectionOptions.getFullyQualifiedNamespace(), null));
-    }
-
-    /**
-     * Creates a handler that handles proton-j's connection events.
-     *
-     * @param connectionId Identifier for this connection.
-     * @param connectionOptions Options used when creating the AMQP connection.
+     * @param peerDetails The peer details for this connection.
+     * @param metricProvider The AMQP metrics provider.
+     * @throws NullPointerException if {@code connectionOptions}, {@code peerDetails}, or {@code metricProvider} is
+     * null.
      */
     public ConnectionHandler(final String connectionId, final ConnectionOptions connectionOptions,
         SslPeerDetails peerDetails, AmqpMetricsProvider metricProvider) {
@@ -87,9 +93,8 @@ public class ConnectionHandler extends Handler {
         this.connectionProperties.put(FRAMEWORK.toString(), ClientConstants.FRAMEWORK_INFO);
 
         final ClientOptions clientOptions = connectionOptions.getClientOptions();
-        final String applicationId = !CoreUtils.isNullOrEmpty(clientOptions.getApplicationId())
-            ? clientOptions.getApplicationId()
-            : null;
+        final String applicationId
+            = !CoreUtils.isNullOrEmpty(clientOptions.getApplicationId()) ? clientOptions.getApplicationId() : null;
         final String userAgent = UserAgentUtil.toUserAgentString(applicationId, connectionOptions.getProduct(),
             connectionOptions.getClientVersion(), null);
 
@@ -150,7 +155,8 @@ public class ConnectionHandler extends Handler {
             try {
                 defaultSslContext = SSLContext.getDefault();
             } catch (NoSuchAlgorithmException e) {
-                throw logger.logExceptionAsError(new RuntimeException("Default SSL algorithm not found in JRE. Please check your JRE setup.", e));
+                throw logger.logExceptionAsError(
+                    new RuntimeException("Default SSL algorithm not found in JRE. Please check your JRE setup.", e));
             }
         }
 
@@ -171,8 +177,8 @@ public class ConnectionHandler extends Handler {
             logger.warning("'{}' is not secure.", verifyMode);
             sslDomain.setPeerAuthentication(SslDomain.VerifyMode.ANONYMOUS_PEER);
         } else {
-            throw logger.logExceptionAsError(new UnsupportedOperationException(
-                "verifyMode is not supported: " + verifyMode));
+            throw logger
+                .logExceptionAsError(new UnsupportedOperationException("verifyMode is not supported: " + verifyMode));
         }
 
         transport.ssl(sslDomain);
@@ -334,6 +340,11 @@ public class ConnectionHandler extends Handler {
         close();
     }
 
+    /**
+     * Gets the error context for this connection.
+     *
+     * @return The error context for this connection.
+     */
     public AmqpErrorContext getErrorContext() {
         return new AmqpErrorContext(getHostname());
     }
@@ -344,7 +355,8 @@ public class ConnectionHandler extends Handler {
         }
 
         if (condition == null) {
-            throw logger.logExceptionAsError(new IllegalStateException("notifyErrorContext does not have an ErrorCondition."));
+            throw logger
+                .logExceptionAsError(new IllegalStateException("notifyErrorContext does not have an ErrorCondition."));
         }
 
         // if the remote-peer abruptly closes the connection without issuing close frame issue one
@@ -355,8 +367,6 @@ public class ConnectionHandler extends Handler {
     }
 
     private void logErrorCondition(String eventName, Connection connection, ErrorCondition error) {
-        addErrorCondition(logger.atInfo(), error)
-            .addKeyValue(HOSTNAME_KEY, connection.getHostname())
-            .log(eventName);
+        addErrorCondition(logger.atInfo(), error).addKeyValue(HOSTNAME_KEY, connection.getHostname()).log(eventName);
     }
 }

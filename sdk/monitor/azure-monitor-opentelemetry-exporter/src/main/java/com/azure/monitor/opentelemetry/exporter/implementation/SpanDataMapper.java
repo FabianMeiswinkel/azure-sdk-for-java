@@ -124,26 +124,27 @@ public final class SpanDataMapper {
     }
 
     public TelemetryItem map(SpanData span) {
-        long itemCount = getItemCount(span);
-        return map(span, itemCount);
+        Double sampleRate = getSampleRate(span);
+        return map(span, sampleRate);
     }
 
     public void map(SpanData span, Consumer<TelemetryItem> consumer) {
-        long itemCount = getItemCount(span);
-        TelemetryItem telemetryItem = map(span, itemCount);
+        Double sampleRate = getSampleRate(span);
+        TelemetryItem telemetryItem = map(span, sampleRate);
         consumer.accept(telemetryItem);
         exportEvents(
             span,
             telemetryItem.getTags().get(ContextTagKeys.AI_OPERATION_NAME.toString()),
-            itemCount,
+            sampleRate,
             consumer);
     }
 
-    public TelemetryItem map(SpanData span, long itemCount) {
+    // TODO looks like this method can be private
+    public TelemetryItem map(SpanData span, @Nullable Double sampleRate) {
         if (RequestChecker.isRequest(span)) {
-            return exportRequest(span, itemCount);
+            return exportRequest(span, sampleRate);
         } else {
-            return exportRemoteDependency(span, span.getKind() == SpanKind.INTERNAL, itemCount);
+            return exportRemoteDependency(span, span.getKind() == SpanKind.INTERNAL, sampleRate);
         }
     }
 
@@ -153,14 +154,14 @@ public final class SpanDataMapper {
         return isPreAggregatedStandardMetric != null && isPreAggregatedStandardMetric;
     }
 
-    private TelemetryItem exportRemoteDependency(SpanData span, boolean inProc, long itemCount) {
+    private TelemetryItem exportRemoteDependency(SpanData span, boolean inProc, @Nullable Double sampleRate) {
         RemoteDependencyTelemetryBuilder telemetryBuilder = RemoteDependencyTelemetryBuilder.create();
         telemetryInitializer.accept(telemetryBuilder, span.getResource());
 
         // set standard properties
         setOperationTags(telemetryBuilder, span);
         setTime(telemetryBuilder, span.getStartEpochNanos());
-        setItemCount(telemetryBuilder, itemCount);
+        setSampleRate(telemetryBuilder, sampleRate);
 
         // update tags
         MAPPINGS.map(span.getAttributes(), telemetryBuilder);
@@ -501,7 +502,7 @@ public final class SpanDataMapper {
         }
     }
 
-    private TelemetryItem exportRequest(SpanData span, long itemCount) {
+    private TelemetryItem exportRequest(SpanData span, @Nullable Double sampleRate) {
         RequestTelemetryBuilder telemetryBuilder = RequestTelemetryBuilder.create();
         telemetryInitializer.accept(telemetryBuilder, span.getResource());
 
@@ -511,7 +512,7 @@ public final class SpanDataMapper {
         // set standard properties
         telemetryBuilder.setId(span.getSpanId());
         setTime(telemetryBuilder, startEpochNanos);
-        setItemCount(telemetryBuilder, itemCount);
+        setSampleRate(telemetryBuilder, sampleRate);
 
         // update tags
         MAPPINGS.map(attributes, telemetryBuilder);
@@ -641,19 +642,43 @@ public final class SpanDataMapper {
         if (scheme == null) {
             return null;
         }
-        String path = attributes.get(SemanticAttributes.URL_PATH);
-        if (path == null) {
-            return null;
-        }
         String host = attributes.get(SemanticAttributes.SERVER_ADDRESS);
         if (host == null) {
             return null;
         }
         Long port = attributes.get(SemanticAttributes.SERVER_PORT);
-        if (port != null && port > 0) {
-            return scheme + "://" + host + ":" + port + path;
+        String path = attributes.get(SemanticAttributes.URL_PATH);
+        if (path == null) {
+            return null;
         }
-        return scheme + "://" + host + path;
+        String query = attributes.get(SemanticAttributes.URL_QUERY);
+
+        int len = scheme.length() + host.length() + path.length();
+        if (port != null) {
+            len += 6; // max 5 digits for port plus the port separator ":"
+        }
+        if (query != null) {
+            len += query.length() + 1; // including the query separator "?"
+        }
+
+        StringBuilder sb = new StringBuilder(len);
+        sb.append(scheme);
+        sb.append("://");
+        sb.append(host);
+        if (port != null && port > 0 && !isDefaultPortForScheme(port, scheme)) {
+            sb.append(':');
+            sb.append(port);
+        }
+        sb.append(path);
+        if (query != null) {
+            sb.append('?');
+            sb.append(query);
+        }
+        return sb.toString();
+    }
+
+    private static boolean isDefaultPortForScheme(Long port, String scheme) {
+        return (port == 80 && scheme.equals("http")) || (port == 443 && scheme.equals("https"));
     }
 
     @Nullable
@@ -747,7 +772,7 @@ public final class SpanDataMapper {
     private void exportEvents(
         SpanData span,
         @Nullable String operationName,
-        long itemCount,
+        @Nullable Double sampleRate,
         Consumer<TelemetryItem> consumer) {
         for (EventData event : span.getEvents()) {
             String instrumentationScopeName = span.getInstrumentationScopeInfo().getName();
@@ -764,8 +789,10 @@ public final class SpanDataMapper {
                     // TODO (trask) map OpenTelemetry exception to Application Insights exception better
                     String stacktrace = event.getAttributes().get(SemanticAttributes.EXCEPTION_STACKTRACE);
                     if (stacktrace != null && !shouldSuppress.test(span, event)) {
-                        consumer.accept(
-                            createExceptionTelemetryItem(stacktrace, span, operationName, itemCount));
+                        String exceptionLogged = span.getAttributes().get(AiSemanticAttributes.LOGGED_EXCEPTION);
+                        if (!stacktrace.equals(exceptionLogged)) {
+                            consumer.accept(createExceptionTelemetryItem(event.getAttributes().get(SemanticAttributes.EXCEPTION_STACKTRACE), span, operationName, sampleRate));
+                        }
                     }
                 }
                 return;
@@ -783,7 +810,7 @@ public final class SpanDataMapper {
                 setOperationName(telemetryBuilder, span.getAttributes());
             }
             setTime(telemetryBuilder, event.getEpochNanos());
-            setItemCount(telemetryBuilder, itemCount);
+            setSampleRate(telemetryBuilder, sampleRate);
 
             // update tags
             MAPPINGS.map(event.getAttributes(), telemetryBuilder);
@@ -796,7 +823,7 @@ public final class SpanDataMapper {
     }
 
     private TelemetryItem createExceptionTelemetryItem(
-        String errorStack, SpanData span, @Nullable String operationName, long itemCount) {
+        String errorStack, SpanData span, @Nullable String operationName, @Nullable Double sampleRate) {
 
         ExceptionTelemetryBuilder telemetryBuilder = ExceptionTelemetryBuilder.create();
         telemetryInitializer.accept(telemetryBuilder, span.getResource());
@@ -810,7 +837,7 @@ public final class SpanDataMapper {
             setOperationName(telemetryBuilder, span.getAttributes());
         }
         setTime(telemetryBuilder, span.getEndEpochNanos());
-        setItemCount(telemetryBuilder, itemCount);
+        setSampleRate(telemetryBuilder, sampleRate);
 
         MAPPINGS.map(span.getAttributes(), telemetryBuilder);
 
@@ -833,15 +860,15 @@ public final class SpanDataMapper {
         telemetryBuilder.setTime(FormattedTime.offSetDateTimeFromEpochNanos(epochNanos));
     }
 
-    private static void setItemCount(AbstractTelemetryBuilder telemetryBuilder, long itemCount) {
-        if (itemCount != 1) {
-            telemetryBuilder.setSampleRate(100.0f / itemCount);
+    private static void setSampleRate(AbstractTelemetryBuilder telemetryBuilder, @Nullable Double sampleRate) {
+        if (sampleRate != null) {
+            telemetryBuilder.setSampleRate(sampleRate.floatValue());
         }
     }
 
-    private static long getItemCount(SpanData span) {
-        Long itemCount = span.getAttributes().get(AiSemanticAttributes.ITEM_COUNT);
-        return itemCount == null ? 1 : itemCount;
+    @Nullable
+    private static Double getSampleRate(SpanData span) {
+        return span.getAttributes().get(AiSemanticAttributes.SAMPLE_RATE);
     }
 
     private static void addLinks(AbstractTelemetryBuilder telemetryBuilder, List<LinkData> links) {

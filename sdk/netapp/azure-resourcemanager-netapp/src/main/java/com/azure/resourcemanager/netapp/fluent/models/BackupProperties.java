@@ -70,8 +70,7 @@ public final class BackupProperties {
     private String volumeResourceId;
 
     /*
-     * Manual backup an already existing snapshot. This will always be false for scheduled backups and true/false for
-     * manual backups
+     * Manual backup an already existing snapshot. This will always be false for scheduled backups and true/false for manual backups
      */
     @JsonProperty(value = "useExistingSnapshot")
     private Boolean useExistingSnapshot;
@@ -252,8 +251,9 @@ public final class BackupProperties {
      */
     public void validate() {
         if (volumeResourceId() == null) {
-            throw LOGGER.logExceptionAsError(
-                new IllegalArgumentException("Missing required property volumeResourceId in model BackupProperties"));
+            throw LOGGER.atError()
+                .log(new IllegalArgumentException(
+                    "Missing required property volumeResourceId in model BackupProperties"));
         }
     }
 

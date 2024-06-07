@@ -28,18 +28,15 @@ public class BreakSentence {
                 .region(region)
                 .endpoint("https://api.cognitive.microsofttranslator.com")
                 .buildClient();
-		
-		// BEGIN: getTextTranslationSentenceBoundaries
+
+        // BEGIN: getTextTranslationSentenceBoundaries
         String sourceLanguage = "zh-Hans";
         String sourceScript = "Latn";
-        List<InputTextItem> content = new ArrayList<>();
-        content.add(new InputTextItem("zhè shì gè cè shì。"));
+        String content = "zhè shì gè cè shì。";
 
-        List<BreakSentenceItem> breakSentences = client.findSentenceBoundaries(content, null, sourceLanguage, sourceScript);
+        BreakSentenceItem breakSentence = client.findSentenceBoundaries(content, sourceLanguage, sourceScript);
 
-        for (BreakSentenceItem breakSentence : breakSentences) {
-            System.out.println("The detected sentence boundaries: " + breakSentence.getSentLen());
-        }
-		// END: getTextTranslationSentenceBoundaries
+        System.out.println("The detected sentence boundaries: " + breakSentence.getSentencesLengths());
+        // END: getTextTranslationSentenceBoundaries
     }
 }

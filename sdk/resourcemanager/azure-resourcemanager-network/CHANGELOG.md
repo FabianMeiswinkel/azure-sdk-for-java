@@ -1,14 +1,50 @@
 # Release History
 
-## 2.35.0-beta.1 (Unreleased)
+## 2.40.0-beta.1 (Unreleased)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated `api-version` to `2023-11-01`.
+
+## 2.39.0 (2024-05-24)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.38.0 (2024-04-16)
 
 ### Features Added
 
-### Breaking Changes
+- Supported setting `DeleteOptions` for public IP addresses associated with `NetworkInterface`.
 
-### Bugs Fixed
+## 2.37.0 (2024-03-22)
 
 ### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
+
+## 2.36.0 (2024-02-29)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated `api-version` to `2023-09-01`.
+
+## 2.35.0 (2024-01-26)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
 
 ## 2.34.0 (2023-12-22)
 

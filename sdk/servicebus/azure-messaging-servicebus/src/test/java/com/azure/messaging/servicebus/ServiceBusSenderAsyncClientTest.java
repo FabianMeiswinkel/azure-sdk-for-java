@@ -595,10 +595,10 @@ class ServiceBusSenderAsyncClientTest {
 
         Map<String, Object> attributes1 = measurement1.getAttributes();
         Map<String, Object> attributes2 = measurement2.getAttributes();
-        assertEquals(3, attributes1.size());
-        assertCommonMetricAttributes(attributes1, "ok");
-        assertEquals(3, attributes2.size());
-        assertCommonMetricAttributes(attributes2, "ok");
+        assertEquals(2, attributes1.size());
+        assertCommonMetricAttributes(attributes1, null);
+        assertEquals(2, attributes2.size());
+        assertCommonMetricAttributes(attributes2, null);
     }
 
     @ParameterizedTest
@@ -636,8 +636,8 @@ class ServiceBusSenderAsyncClientTest {
         assertEquals(1, measurement.getValue());
 
         Map<String, Object> attributes = measurement.getAttributes();
-        assertEquals(3, attributes.size());
-        assertCommonMetricAttributes(attributes, "ok");
+        assertEquals(2, attributes.size());
+        assertCommonMetricAttributes(attributes, null);
         assertEquals(span, measurement.getContext());
     }
 
@@ -671,8 +671,8 @@ class ServiceBusSenderAsyncClientTest {
         TestMeasurement<Long> measurement = sentMessagesCounter.getMeasurements().get(0);
         assertEquals(2, measurement.getValue());
 
-        assertEquals(3,  measurement.getAttributes().size());
-        assertCommonMetricAttributes(measurement.getAttributes(), "ok");
+        assertEquals(2,  measurement.getAttributes().size());
+        assertCommonMetricAttributes(measurement.getAttributes(), null);
     }
 
     @ParameterizedTest
@@ -1030,6 +1030,47 @@ class ServiceBusSenderAsyncClientTest {
             Assertions.assertEquals(content, iterator.next().getBody().toString());
         }
         messagesSent.forEach(message -> Assertions.assertEquals(Section.SectionType.Data, message.getBody().getType()));
+    }
+
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void canBatchMessagesInIterable() {
+        // Arrange
+        final ServiceBusSenderAsyncClient sender = mock(ServiceBusSenderAsyncClient.class);
+        final ServiceBusMessageBatch batch0 = mock(ServiceBusMessageBatch.class);
+        when(batch0.tryAddMessage(any(ServiceBusMessage.class))).thenReturn(true, true, true, true, false);
+        final ServiceBusMessageBatch batch1 = mock(ServiceBusMessageBatch.class);
+        when(batch1.tryAddMessage(any(ServiceBusMessage.class))).thenReturn(true, true, true, true, true, false);
+        final ServiceBusMessageBatch batch2 = mock(ServiceBusMessageBatch.class);
+        when(batch2.tryAddMessage(any(ServiceBusMessage.class))).thenReturn(true, true, true, true, true, true, false);
+        when(sender.createMessageBatch()).thenReturn(Mono.just(batch0), Mono.just(batch1), Mono.just(batch2));
+        when(sender.sendMessages(any(ServiceBusMessageBatch.class))).thenReturn(Mono.empty());
+        when(sender.sendMessages(anyList())).thenCallRealMethod();
+        final List<ServiceBusMessage> messages = new ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            messages.add(new ServiceBusMessage(new byte[0]));
+        }
+        ArgumentCaptor<ServiceBusMessage> messagesCaptor0 = ArgumentCaptor.forClass(ServiceBusMessage.class);
+        ArgumentCaptor<ServiceBusMessage> messagesCaptor1 = ArgumentCaptor.forClass(ServiceBusMessage.class);
+        ArgumentCaptor<ServiceBusMessage> messagesCaptor2 = ArgumentCaptor.forClass(ServiceBusMessage.class);
+
+        // Act & Assert
+        StepVerifier.create(sender.sendMessages(messages))
+            .verifyComplete();
+
+        Mockito.verify(sender, Mockito.times(3)).createMessageBatch();
+        Mockito.verify(batch0, Mockito.times(5)).tryAddMessage(messagesCaptor0.capture());
+        Mockito.verify(batch1, Mockito.times(6)).tryAddMessage(messagesCaptor1.capture());
+        Mockito.verify(batch2, Mockito.times(6)).tryAddMessage(messagesCaptor2.capture());
+
+        Assertions.assertEquals(5, messagesCaptor0.getAllValues().size());
+        Assertions.assertEquals(6, messagesCaptor1.getAllValues().size());
+        Assertions.assertEquals(6, messagesCaptor2.getAllValues().size());
+
+        Assertions.assertEquals(messages.subList(0, 5), messagesCaptor0.getAllValues());
+        Assertions.assertEquals(messages.subList(4, 10), messagesCaptor1.getAllValues());
+        Assertions.assertEquals(messages.subList(9, 15), messagesCaptor2.getAllValues());
     }
 
     /**

@@ -130,6 +130,11 @@ public abstract class CertificateClientTestBase extends TestProxyTestBase {
             .credential(credential)
             .httpClient(httpClient);
 
+        if (!interceptorManager.isLiveMode()) {
+            // Remove `id` and `name` sanitizers from the list of common sanitizers.
+            interceptorManager.removeSanitizers("AZSDK3430", "AZSDK3493");
+        }
+
         if (interceptorManager.isPlaybackMode()) {
             return builder.retryOptions(PLAYBACK_RETRY_OPTIONS);
         } else {
@@ -507,26 +512,6 @@ public abstract class CertificateClientTestBase extends TestProxyTestBase {
             .setEnabled(true)
             .setOrganizationId("orgId")
             .setPassword("fakePasswordPlaceholder");
-    }
-
-    static String toHexString(byte[] x5t) {
-        if (x5t == null) {
-            return "";
-        }
-
-        StringBuilder hexString = new StringBuilder();
-
-        for (byte b : x5t) {
-            String hex = Integer.toHexString(0xFF & b);
-
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-
-            hexString.append(hex);
-        }
-
-        return hexString.toString().replace("-", "");
     }
 
     X509Certificate loadCerToX509Certificate(byte[] certificate) throws CertificateException, IOException {

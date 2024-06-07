@@ -147,8 +147,7 @@ public final class BackupStatusInner {
     }
 
     /**
-     * Get the transferProgressBytes property: Displays the total number of bytes transferred for the ongoing
-     * operation.
+     * Get the transferProgressBytes property: Displays the total number of bytes transferred for the ongoing operation.
      * 
      * @return the transferProgressBytes value.
      */

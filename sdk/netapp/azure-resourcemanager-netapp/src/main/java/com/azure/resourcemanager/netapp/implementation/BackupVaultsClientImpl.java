@@ -66,8 +66,8 @@ public final class BackupVaultsClientImpl implements BackupVaultsClient {
     }
 
     /**
-     * The interface defining all the services for NetAppManagementClientBackupVaults to be used by the proxy service
-     * to perform REST calls.
+     * The interface defining all the services for NetAppManagementClientBackupVaults to be used by the proxy service to
+     * perform REST calls.
      */
     @Host("{$host}")
     @ServiceInterface(name = "NetAppManagementClie")

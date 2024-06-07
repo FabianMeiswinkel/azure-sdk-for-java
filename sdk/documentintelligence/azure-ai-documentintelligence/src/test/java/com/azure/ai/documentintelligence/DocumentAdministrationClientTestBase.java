@@ -27,11 +27,13 @@ import java.util.Collections;
 import java.util.function.Consumer;
 
 import static com.azure.ai.documentintelligence.TestUtils.INVALID_KEY;
+import static com.azure.ai.documentintelligence.TestUtils.REMOVE_SANITIZER_ID;
 import static com.azure.ai.documentintelligence.TestUtils.getTestProxySanitizers;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class DocumentAdministrationClientTestBase extends TestProxyTestBase {
     Duration durationTestMode;
+    private boolean sanitizersRemoved = false;
 
     /**
      * Use duration of nearly zero value for PLAYBACK test mode, otherwise, use default duration value for LIVE mode.
@@ -57,10 +59,10 @@ class DocumentAdministrationClientTestBase extends TestProxyTestBase {
                 builder.credential(new AzureKeyCredential(INVALID_KEY));
                 setMatchers();
             } else if (interceptorManager.isRecordMode()) {
-                builder.credential(new AzureKeyCredential(TestUtils.AZURE_FORM_RECOGNIZER_API_KEY_CONFIGURATION));
+                builder.credential(new AzureKeyCredential(TestUtils.AZURE_DOCUMENTINTELLIGENCE_API_KEY_CONFIGURATION));
                 builder.addPolicy(interceptorManager.getRecordPolicy());
             } else if (interceptorManager.isLiveMode()) {
-                builder.credential(new AzureKeyCredential(TestUtils.AZURE_FORM_RECOGNIZER_API_KEY_CONFIGURATION));
+                builder.credential(new AzureKeyCredential(TestUtils.AZURE_DOCUMENTINTELLIGENCE_API_KEY_CONFIGURATION));
             }
         } else {
             if (interceptorManager.isPlaybackMode()) {
@@ -73,8 +75,10 @@ class DocumentAdministrationClientTestBase extends TestProxyTestBase {
                 builder.credential(new DefaultAzureCredentialBuilder().build());
             }
         }
-        if (!interceptorManager.isLiveMode()) {
+        if (!interceptorManager.isLiveMode() && !sanitizersRemoved) {
             interceptorManager.addSanitizers(getTestProxySanitizers());
+            interceptorManager.removeSanitizers(REMOVE_SANITIZER_ID);
+            sanitizersRemoved = true;
         }
         return builder;
     }
@@ -126,7 +130,7 @@ class DocumentAdministrationClientTestBase extends TestProxyTestBase {
     private String getEndpoint() {
         return interceptorManager.isPlaybackMode()
             ? "https://localhost:8080"
-            : TestUtils.AZURE_FORM_RECOGNIZER_ENDPOINT_CONFIGURATION;
+            : TestUtils.AZURE_DOCUMENTINTELLIGENCE_ENDPOINT_CONFIGURATION;
     }
 
 }

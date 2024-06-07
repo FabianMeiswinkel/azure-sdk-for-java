@@ -99,22 +99,25 @@ public class LogDataMapper {
         this.telemetryInitializer = telemetryInitializer;
     }
 
-    public TelemetryItem map(LogRecordData log, @Nullable String stack, @Nullable Long itemCount) {
+    public TelemetryItem map(LogRecordData log, @Nullable String stack, @Nullable Double sampleRate) {
+        if (sampleRate == null) {
+            sampleRate = getSampleRate(log);
+        }
         if (stack == null) {
-            return createMessageTelemetryItem(log, itemCount);
+            return createMessageTelemetryItem(log, sampleRate);
         } else {
-            return createExceptionTelemetryItem(log, stack, itemCount);
+            return createExceptionTelemetryItem(log, stack, sampleRate);
         }
     }
 
-    private TelemetryItem createMessageTelemetryItem(LogRecordData log, @Nullable Long itemCount) {
+    private TelemetryItem createMessageTelemetryItem(LogRecordData log, @Nullable Double sampleRate) {
         MessageTelemetryBuilder telemetryBuilder = MessageTelemetryBuilder.create();
         telemetryInitializer.accept(telemetryBuilder, log.getResource());
 
         // set standard properties
         setOperationTags(telemetryBuilder, log);
         setTime(telemetryBuilder, log);
-        setItemCount(telemetryBuilder, log, itemCount);
+        setSampleRate(telemetryBuilder, sampleRate);
 
         // update tags
         Attributes attributes = log.getAttributes();
@@ -137,14 +140,14 @@ public class LogDataMapper {
     }
 
     private TelemetryItem createExceptionTelemetryItem(
-        LogRecordData log, String stack, @Nullable Long itemCount) {
+        LogRecordData log, String stack, @Nullable Double sampleRate) {
         ExceptionTelemetryBuilder telemetryBuilder = ExceptionTelemetryBuilder.create();
         telemetryInitializer.accept(telemetryBuilder, log.getResource());
 
         // set standard properties
         setOperationTags(telemetryBuilder, log);
         setTime(telemetryBuilder, log);
-        setItemCount(telemetryBuilder, log, itemCount);
+        setSampleRate(telemetryBuilder, sampleRate);
 
         // update tags
         Attributes attributes = log.getAttributes();
@@ -208,15 +211,15 @@ public class LogDataMapper {
         return log.getObservedTimestampEpochNanos();
     }
 
+    private static void setSampleRate(AbstractTelemetryBuilder telemetryBuilder, @Nullable Double sampleRate) {
+        if (sampleRate != null) {
+            telemetryBuilder.setSampleRate(sampleRate.floatValue());
+        }
+    }
 
-    private static void setItemCount(
-        AbstractTelemetryBuilder telemetryBuilder, LogRecordData log, @Nullable Long itemCount) {
-        if (itemCount == null) {
-            itemCount = log.getAttributes().get(AiSemanticAttributes.ITEM_COUNT);
-        }
-        if (itemCount != null && itemCount != 1) {
-            telemetryBuilder.setSampleRate(100.0f / itemCount);
-        }
+    @Nullable
+    private static Double getSampleRate(LogRecordData log) {
+        return log.getAttributes().get(AiSemanticAttributes.SAMPLE_RATE);
     }
 
     private static void setFunctionExtraTraceAttributes(
