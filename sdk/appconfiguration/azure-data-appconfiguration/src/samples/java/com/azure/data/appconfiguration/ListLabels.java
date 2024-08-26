@@ -6,7 +6,7 @@ package com.azure.data.appconfiguration;
 import com.azure.core.util.Configuration;
 import com.azure.core.util.Context;
 import com.azure.data.appconfiguration.models.ConfigurationSetting;
-import com.azure.data.appconfiguration.models.LabelSelector;
+import com.azure.data.appconfiguration.models.SettingLabelSelector;
 
 /**
  * A sample demonstrate how to list labels.
@@ -39,14 +39,14 @@ public class ListLabels {
         // If you want to list all labels by wildcard, pass wildcard where AppConfig supports, such as "prod*",
         System.out.println("List all labels:");
         client.listLabels(null, Context.NONE)
-                .forEach(label -> System.out.println("\tLabel name = " + label));
+                .forEach(label -> System.out.println("\tLabel name = " + label.getName()));
 
         System.out.println("List label by exact match:");
-        client.listLabels(new LabelSelector().setLabelFilter("prod2"), Context.NONE)
-                .forEach(label -> System.out.println("\tLabel name = " + label));
+        client.listLabels(new SettingLabelSelector().setNameFilter("prod2"), Context.NONE)
+                .forEach(label -> System.out.println("\tLabel name = " + label.getName()));
 
         System.out.println("List labels by wildcard:");
-        client.listLabels(new LabelSelector().setLabelFilter("prod*"), Context.NONE)
-                .forEach(label -> System.out.println("\tLabel name = " + label));
+        client.listLabels(new SettingLabelSelector().setNameFilter("prod*"), Context.NONE)
+                .forEach(label -> System.out.println("\tLabel name = " + label.getName()));
     }
 }

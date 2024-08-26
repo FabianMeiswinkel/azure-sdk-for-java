@@ -1,6 +1,34 @@
 # Release History
 
-## 2.40.0-beta.1 (Unreleased)
+## 2.43.0-beta.1 (Unreleased)
+
+### Features Added
+
+### Breaking Changes
+
+### Bugs Fixed
+
+### Other Changes
+
+## 2.42.0 (2024-08-23)
+
+### Other Changes
+
+- Replaced `Jackson` with `azure-json` for serialization/deserialization.
+
+## 2.41.0 (2024-07-25)
+
+### Breaking Changes
+
+- Removed superclass `SubResource` from model class `FirewallPacketCaptureParameters`.
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated `api-version` to `2024-01-01`.
+
+## 2.40.0 (2024-06-24)
 
 ### Other Changes
 

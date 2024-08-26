@@ -52,7 +52,6 @@ extends:
   parameters:
     ServiceDirectory: identity
     TimeoutInMinutes: 90
-    EnableBatchRelease: true
     ReleaseDependsOnLiveTests: ${{ parameters.release_dependsonlivetests }}
     Artifacts:
       - name: azure-identity
@@ -75,6 +74,7 @@ extends:
           CalledFromClient: true
           ServiceDirectory: identity
           SupportedClouds: 'Public,UsGov,China'
+          UseFederatedAuth: false
           EnvVars:
             SYSTEM_ACCESSTOKEN: $(System.AccessToken)
           CloudConfig:

@@ -1,6 +1,6 @@
 # Release History
 
-## 2.40.0-beta.1 (Unreleased)
+## 2.43.0-beta.1 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,32 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 2.42.0 (2024-08-23)
+
+### Other Changes
+
+- Replaced `Jackson` with `azure-json` for serialization/deserialization.
+
+## 2.41.0 (2024-07-25)
+
+### Breaking Changes
+
+- Removed non-functional API `getOsOptions` and related models `OSOptionProperty`.
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated `api-version` to `2024-05-01`.
+
+## 2.40.0 (2024-06-24)
+
+### Other Changes
+
+#### Dependency Updates
+
+- Updated core dependency from resources.
 
 ## 2.39.0 (2024-05-24)
 

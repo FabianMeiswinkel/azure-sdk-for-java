@@ -6,12 +6,14 @@ package com.azure.storage.file.datalake;
 import com.azure.core.annotation.ReturnType;
 import com.azure.core.annotation.ServiceClient;
 import com.azure.core.annotation.ServiceMethod;
+import com.azure.core.credential.AzureSasCredential;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.http.HttpPipeline;
 import com.azure.core.http.rest.PagedIterable;
 import com.azure.core.http.rest.Response;
 import com.azure.core.http.rest.SimpleResponse;
 import com.azure.core.util.Context;
+import com.azure.core.util.CoreUtils;
 import com.azure.core.util.logging.ClientLogger;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.models.BlobServiceProperties;
@@ -29,6 +31,7 @@ import com.azure.storage.file.datalake.options.FileSystemUndeleteOptions;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.function.Consumer;
 
 
 /**
@@ -48,6 +51,12 @@ public class DataLakeServiceClient {
     private static final ClientLogger LOGGER = new ClientLogger(DataLakeServiceClient.class);
     private final DataLakeServiceAsyncClient dataLakeServiceAsyncClient;
     final BlobServiceClient blobServiceClient;
+    private final HttpPipeline pipeline;
+    private final String url;
+    private final String accountName;
+    private final DataLakeServiceVersion serviceVersion;
+    private final AzureSasCredential sasToken;
+    private final boolean isTokenCredentialAuthenticated;
 
     /**
      * Package-private constructor for use by {@link DataLakeServiceClientBuilder}.
@@ -55,9 +64,17 @@ public class DataLakeServiceClient {
      * @param dataLakeServiceAsyncClient the async data lake service client.
      * @param blobServiceClient the sync blob service client.
      */
-    DataLakeServiceClient(DataLakeServiceAsyncClient dataLakeServiceAsyncClient, BlobServiceClient blobServiceClient) {
+    DataLakeServiceClient(DataLakeServiceAsyncClient dataLakeServiceAsyncClient, BlobServiceClient blobServiceClient,
+        HttpPipeline pipeline, String url, DataLakeServiceVersion serviceVersion, String accountName,
+        AzureSasCredential sasToken, boolean isTokenCredentialAuthenticated) {
         this.dataLakeServiceAsyncClient = dataLakeServiceAsyncClient;
         this.blobServiceClient = blobServiceClient;
+        this.pipeline = pipeline;
+        this.url = url;
+        this.serviceVersion = serviceVersion;
+        this.accountName = accountName;
+        this.sasToken = sasToken;
+        this.isTokenCredentialAuthenticated = isTokenCredentialAuthenticated;
     }
 
     /**
@@ -77,8 +94,12 @@ public class DataLakeServiceClient {
      * @return A {@link DataLakeFileSystemClient} object pointing to the specified file system
      */
     public DataLakeFileSystemClient getFileSystemClient(String fileSystemName) {
+        if (CoreUtils.isNullOrEmpty(fileSystemName)) {
+            fileSystemName = DataLakeFileSystemClient.ROOT_FILESYSTEM_NAME;
+        }
         return new DataLakeFileSystemClient(dataLakeServiceAsyncClient.getFileSystemAsyncClient(fileSystemName),
-            blobServiceClient.getBlobContainerClient(fileSystemName));
+            blobServiceClient.getBlobContainerClient(fileSystemName), getHttpPipeline(), getAccountUrl(),
+            getServiceVersion(), getAccountName(), fileSystemName, sasToken, isTokenCredentialAuthenticated);
     }
 
     /**
@@ -87,7 +108,7 @@ public class DataLakeServiceClient {
      * @return The pipeline.
      */
     public HttpPipeline getHttpPipeline() {
-        return dataLakeServiceAsyncClient.getHttpPipeline();
+        return pipeline;
     }
 
     /**
@@ -96,7 +117,7 @@ public class DataLakeServiceClient {
      * @return the service version the client is using.
      */
     public DataLakeServiceVersion getServiceVersion() {
-        return this.dataLakeServiceAsyncClient.getServiceVersion();
+        return serviceVersion;
     }
 
     /**
@@ -215,7 +236,7 @@ public class DataLakeServiceClient {
      * @return the URL.
      */
     public String getAccountUrl() {
-        return dataLakeServiceAsyncClient.getAccountUrl();
+        return url;
     }
 
     /**
@@ -264,8 +285,11 @@ public class DataLakeServiceClient {
      */
     @ServiceMethod(returns = ReturnType.COLLECTION)
     public PagedIterable<FileSystemItem> listFileSystems(ListFileSystemsOptions options, Duration timeout) {
+        // this method depends on BlobServiceAsyncClient.listContainers
         return new PagedIterable<>(dataLakeServiceAsyncClient.listFileSystemsWithOptionalTimeout(options, timeout));
     }
+
+
 
     /**
      * Returns the resource's metadata and properties.
@@ -480,7 +504,7 @@ public class DataLakeServiceClient {
      * @return account name associated with this storage resource.
      */
     public String getAccountName() {
-        return this.dataLakeServiceAsyncClient.getAccountName();
+        return this.accountName;
     }
 
     /**
@@ -512,7 +536,7 @@ public class DataLakeServiceClient {
      * @return A {@code String} representing the SAS query parameters.
      */
     public String generateAccountSas(AccountSasSignatureValues accountSasSignatureValues) {
-        return dataLakeServiceAsyncClient.generateAccountSas(accountSasSignatureValues);
+        return generateAccountSas(accountSasSignatureValues, null);
     }
 
     /**
@@ -545,7 +569,24 @@ public class DataLakeServiceClient {
      * @return A {@code String} representing the SAS query parameters.
      */
     public String generateAccountSas(AccountSasSignatureValues accountSasSignatureValues, Context context) {
-        return dataLakeServiceAsyncClient.generateAccountSas(accountSasSignatureValues, context);
+        return generateAccountSas(accountSasSignatureValues, null, context);
+    }
+
+    /**
+     * Generates an account SAS for the Azure Storage account using the specified {@link AccountSasSignatureValues}.
+     * <p>Note : The client must be authenticated via {@link StorageSharedKeyCredential}
+     * <p>See {@link AccountSasSignatureValues} for more information on how to construct an account SAS.</p>
+     *
+     * @param accountSasSignatureValues {@link AccountSasSignatureValues}
+     * @param stringToSignHandler For debugging purposes only. Returns the string to sign that was used to generate the
+     * signature.
+     * @param context Additional context that is passed through the code when generating a SAS.
+     *
+     * @return A {@code String} representing the SAS query parameters.
+     */
+    public String generateAccountSas(AccountSasSignatureValues accountSasSignatureValues,
+        Consumer<String> stringToSignHandler, Context context) {
+        return blobServiceClient.generateAccountSas(accountSasSignatureValues, stringToSignHandler, context);
     }
 
     /**
