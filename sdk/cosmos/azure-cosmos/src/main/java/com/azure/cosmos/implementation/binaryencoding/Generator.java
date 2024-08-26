@@ -16,8 +16,8 @@ import java.math.BigInteger;
 public class Generator extends GeneratorBase {
 
     public Generator(IOContext ioCtxt, int stdFeatures, int binaryFeatures,
-                     ObjectCodec codec, OutputStream out)   {
-
+                     ObjectCodec codec, OutputStream out) {
+        super(stdFeatures, codec, ioCtxt);
 
     }
 

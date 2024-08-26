@@ -23,6 +23,7 @@ public class TryResult<TResult> {
         return mResult;
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> TryResult<T> failed(Class<T> clazz) {
         return (TryResult<T>)failedResults.computeIfAbsent(clazz, (c -> new TryResult<>(false, (T)null)));
     }

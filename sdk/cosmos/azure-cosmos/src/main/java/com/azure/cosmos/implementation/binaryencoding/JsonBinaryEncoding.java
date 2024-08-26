@@ -254,7 +254,42 @@ public class JsonBinaryEncoding {
         }
     }
 
-    public static boolean TryEncodeGuidString(ByteBuf guidString, ByteBuf destinationBuffer)
+    private static int getFixedSizedValueAsUInt16(ByteBuf buffer)
+    {
+        return buffer.getChar(0);
+    }
+
+    private static int getEncodedStringValueLength(ByteBuf stringToken)
+    {
+        byte typeMarker = stringToken.getByte(0);
+
+        switch (typeMarker)
+        {
+            case TypeMarker.CompressedLowercaseHexString:
+            case TypeMarker.CompressedUppercaseHexString:
+            case TypeMarker.CompressedDateTimeString:
+            case TypeMarker.Packed4BitString:
+            case TypeMarker.Packed5BitString:
+            case TypeMarker.Packed6BitString:
+            case TypeMarker.Packed7BitStringLength1:
+                return stringToken.getByte(1);
+
+            case TypeMarker.Packed7BitStringLength2:
+                return getFixedSizedValueAsUInt16(stringToken.slice(1, 2));
+
+            case TypeMarker.LowercaseGuidString:
+            case TypeMarker.UppercaseGuidString:
+                return GuidLength;
+
+            case TypeMarker.DoubleQuotedLowercaseGuidString:
+                return GuidWithQuotesLength;
+
+            default:
+                throw getIllegalTypeMarkerException(typeMarker);
+        }
+    }
+
+    public static boolean tryEncodeGuidString(ByteBuf guidString, ByteBuf destinationBuffer)
     {
         checkNotNull(guidString, "Parameter 'guidString' MUST NOT be null.");
         checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
@@ -341,8 +376,82 @@ public class JsonBinaryEncoding {
         return true;
     }
 
-    private static int DecodeString(ByteBuf stringToken, ByteBuf destinationBuffer)
+    public static int getCompressedStringLength(
+        int length,
+        int numberOfBits) {
+
+        return ((length * numberOfBits) + 7) / 8;
+    }
+
+    private static IllegalArgumentException getIllegalTypeMarkerException(byte typeMarker) {
+        return new IllegalArgumentException("Invalid type marker: " + typeMarker + ".");
+    }
+
+    private static int getEncodedStringBufferLength(ByteBuf stringToken) {
+        byte typeMarker = stringToken.getByte(0);
+
+        switch (typeMarker) {
+            case TypeMarker.CompressedLowercaseHexString:
+            case TypeMarker.CompressedUppercaseHexString:
+            case TypeMarker.CompressedDateTimeString:
+                return getCompressedStringLength(stringToken.getByte(1), 4);
+
+            case TypeMarker.Packed4BitString:
+                return getCompressedStringLength(stringToken.getByte(1), 4);
+
+            case TypeMarker.Packed5BitString:
+                return getCompressedStringLength(stringToken.getByte(1), 5);
+
+            case TypeMarker.Packed6BitString:
+                return getCompressedStringLength(stringToken.getByte(1), 6);
+
+            case TypeMarker.Packed7BitStringLength1:
+                return getCompressedStringLength(stringToken.getByte(1), 7);
+
+            case TypeMarker.Packed7BitStringLength2:
+                return getCompressedStringLength(getFixedSizedValueAsUInt16(stringToken.slice(1, 2)), 7);
+
+            case TypeMarker.LowercaseGuidString:
+            case TypeMarker.UppercaseGuidString:
+            case TypeMarker.DoubleQuotedLowercaseGuidString:
+                return 16;
+
+            default:
+                throw getIllegalTypeMarkerException(typeMarker);
+        }
+    }
+
+    private static byte getEncodedStringBaseChar(ByteBuf stringToken)
     {
+        byte typeMarker = stringToken.getByte(0);
+
+        switch (typeMarker)
+        {
+            case TypeMarker.CompressedLowercaseHexString:
+            case TypeMarker.CompressedUppercaseHexString:
+            case TypeMarker.CompressedDateTimeString:
+                return 0;
+
+            case TypeMarker.Packed4BitString:
+            case TypeMarker.Packed5BitString:
+            case TypeMarker.Packed6BitString:
+                return stringToken.getByte(2);
+
+            case TypeMarker.Packed7BitStringLength1:
+            case TypeMarker.Packed7BitStringLength2:
+                return 0;
+
+            case TypeMarker.LowercaseGuidString:
+            case TypeMarker.UppercaseGuidString:
+            case TypeMarker.DoubleQuotedLowercaseGuidString:
+                return 0;
+
+            default:
+                throw getIllegalTypeMarkerException(typeMarker);
+        }
+    }
+
+    private static void decodeString(ByteBuf stringToken, ByteBuf destinationBuffer) throws JsonInvalidTokenException {
         checkNotNull(stringToken, "Parameter 'stringToken' MUST NOT be null.");
         checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
         byte typeMarker = stringToken.getByte(0);
@@ -372,25 +481,26 @@ public class JsonBinaryEncoding {
                 "Parameter stringToken must have at least a length of " + prefixByteCount + " bytes.");
         }
 
-        int bytesWritten = GetEncodedStringValueLength(stringToken);
-        int encodedLength = GetEncodedStringBufferLength(stringToken);
-        byte baseChar = GetEncodedStringBaseChar(stringToken);
+        int bytesWritten = getEncodedStringValueLength(stringToken);
+        int encodedLength = getEncodedStringBufferLength(stringToken);
+        byte baseChar = getEncodedStringBaseChar(stringToken);
 
-        if (stringToken.Length < (prefixByteCount + encodedLength))
+        if (stringToken.readableBytes() < (prefixByteCount + encodedLength))
         {
             throw new JsonInvalidTokenException();
         }
 
-        if (!destinationBuffer.IsEmpty)
+        int writableBytes = destinationBuffer.writableBytes();
+        if (writableBytes > 0)
         {
-            if (bytesWritten > destinationBuffer.Length)
+            if (bytesWritten > writableBytes)
             {
-                throw new InvalidOperationException("buffer is too small");
+                throw new IllegalArgumentException("buffer destination is too small");
             }
 
-            ReadOnlySpan<byte> encodedString = stringToken.Slice(start: prefixByteCount, length: encodedLength);
+            ByteBuf encodedString = stringToken.slice(prefixByteCount, encodedLength);
 
-            DecodeStringValue(typeMarker, encodedString, baseChar, destinationBuffer.Slice(start: 0, length: bytesWritten));
+            decodeStringValue(typeMarker, encodedString, baseChar, destinationBuffer.slice(0, bytesWritten));
         }
     }
 
@@ -479,7 +589,7 @@ public class JsonBinaryEncoding {
         }
     }
 
-    private static void DecodeStringValue(byte typeMarker, ByteBuf encodedString, byte baseChar, ByteBuf destinationBuffer)
+    private static void decodeStringValue(byte typeMarker, ByteBuf encodedString, byte baseChar, ByteBuf destinationBuffer)
     {
         checkNotNull(encodedString, "Parameter 'encodedString' MUST NOT be null.");
         checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
