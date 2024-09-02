@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.implementation.binaryencoding;
 
-import com.azure.cosmos.implementation.Index;
 import com.fasterxml.jackson.core.JsonParseException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -718,7 +717,7 @@ public class JsonBinaryEncoding {
     /// <param name="number64">The number.</param>
     /// <param name="bytesConsumed">The number of bytes consumed</param>
     /// <returns>Whether a number was parsed.</returns>
-    public static TryBiResult<Number64, Integer> tryGetNumberValue(ByteBuf numberToken) throws JsonParseException {
+    public static TryBiResult<Number64, Integer> tryDecodeNumberValue(ByteBuf numberToken) throws JsonParseException {
         Number64 number64 = null;
         int bytesConsumed = 0;
 
@@ -802,8 +801,8 @@ public class JsonBinaryEncoding {
     /// </summary>
     /// <param name="numberToken">The buffer to read the number from.</param>
     /// <returns>The number value from the binary reader.</returns>
-    public static Number64 getNumberValue(ByteBuf numberToken) throws JsonParseException {
-        TryBiResult<Number64, Integer> result = JsonBinaryEncoding.tryGetNumberValue(numberToken);
+    public static Number64 decodeNumberValue(ByteBuf numberToken) throws JsonParseException {
+        TryBiResult<Number64, Integer> result = JsonBinaryEncoding.tryDecodeNumberValue(numberToken);
         if (!result.isSuccess())
         {
             throw new JsonNotNumberTokenException();
@@ -823,28 +822,32 @@ public class JsonBinaryEncoding {
             TryBiResult.failed(clazz, Integer.class);
         }
 
-        byte typeMarker = token.getByte(0);
+        byte typeMarker = token.readByte();
         if (typeMarker != expectedTypeMarker) {
             TryBiResult.failed(clazz, Integer.class);
         }
 
         if (clazz == Byte.class && sizeofType == 1) {
-            return (TryBiResult<T, Integer>) TryBiResult.success(token.getByte(1), sizeofType);
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readByte(), sizeofType);
         } else if (clazz == Short.class && sizeofType == 2) {
-            return (TryBiResult<T, Integer>) TryBiResult.success(token.getShort (1), sizeofType);
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readShortLE(), sizeofType);
         } else if (clazz == Integer.class && sizeofType == 4) {
-            return (TryBiResult<T, Integer>) TryBiResult.success(token.getInt(1), sizeofType);
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readIntLE(), sizeofType);
         } else if (clazz == Long.class && sizeofType == 8) {
-            return (TryBiResult<T, Integer>) TryBiResult.success(token.getLong(1), sizeofType);
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readLongLE(), sizeofType);
         } else if (clazz == Long.class && sizeofType == 4) {
-            return (TryBiResult<T, Integer>) TryBiResult.success(token.getUnsignedInt(1), sizeofType);
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readUnsignedIntLE(), sizeofType);
+        } else if (clazz == Float.class && sizeofType == 4) {
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readFloatLE(), sizeofType);
+        } else if (clazz == Double.class && sizeofType == 8) {
+            return (TryBiResult<T, Integer>) TryBiResult.success(token.readDoubleLE(), sizeofType);
         } else {
             return TryBiResult.failed(clazz, Integer.class);
         }
     }
 
-    public static byte GetInt8Value(ByteBuf int8Token) throws JsonParseException {
-        TryBiResult<Byte, Integer> result = JsonBinaryEncoding.tryGetInt8Value(int8Token);
+    public static byte decodeInt8Value(ByteBuf int8Token) throws JsonParseException {
+        TryBiResult<Byte, Integer> result = JsonBinaryEncoding.tryDecodeInt8Value(int8Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -853,7 +856,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Byte, Integer> tryGetInt8Value(ByteBuf int8Token) {
+    public static TryBiResult<Byte, Integer> tryDecodeInt8Value(ByteBuf int8Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             int8Token,
             TypeMarker.Int8,
@@ -861,8 +864,8 @@ public class JsonBinaryEncoding {
             Byte.class);
     }
 
-    public static short getInt16Value(ByteBuf int16Token) throws JsonParseException {
-        TryBiResult<Short, Integer> result = JsonBinaryEncoding.tryGetInt16Value(int16Token);
+    public static short decodeInt16Value(ByteBuf int16Token) throws JsonParseException {
+        TryBiResult<Short, Integer> result = JsonBinaryEncoding.tryDecodeInt16Value(int16Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -871,7 +874,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Short, Integer> tryGetInt16Value(ByteBuf int16Token) {
+    public static TryBiResult<Short, Integer> tryDecodeInt16Value(ByteBuf int16Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             int16Token,
             TypeMarker.Int16,
@@ -880,9 +883,9 @@ public class JsonBinaryEncoding {
         );
     }
 
-    public static int getInt32Value(ByteBuf int32Token) throws JsonParseException
+    public static int decodeInt32Value(ByteBuf int32Token) throws JsonParseException
     {
-        TryBiResult<Integer, Integer> result = JsonBinaryEncoding.tryGetInt32Value(int32Token);
+        TryBiResult<Integer, Integer> result = JsonBinaryEncoding.tryDecodeInt32Value(int32Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -891,7 +894,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Integer, Integer> tryGetInt32Value(ByteBuf int32Token) {
+    public static TryBiResult<Integer, Integer> tryDecodeInt32Value(ByteBuf int32Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             int32Token,
             TypeMarker.Int32,
@@ -900,9 +903,9 @@ public class JsonBinaryEncoding {
         );
     }
 
-    public static long getInt64Value(ByteBuf int64Token) throws JsonParseException
+    public static long decodeInt64Value(ByteBuf int64Token) throws JsonParseException
     {
-        TryBiResult<Long, Integer> result = JsonBinaryEncoding.tryGetInt64Value(int64Token);
+        TryBiResult<Long, Integer> result = JsonBinaryEncoding.tryDecodeInt64Value(int64Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -911,7 +914,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Long, Integer> tryGetInt64Value(ByteBuf int64Token) {
+    public static TryBiResult<Long, Integer> tryDecodeInt64Value(ByteBuf int64Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             int64Token,
             TypeMarker.Int64,
@@ -920,9 +923,9 @@ public class JsonBinaryEncoding {
         );
     }
 
-    public static long getUInt32Value(ByteBuf uInt32Token) throws JsonParseException
+    public static long decodeUInt32Value(ByteBuf uInt32Token) throws JsonParseException
     {
-        TryBiResult<Long, Integer> result = JsonBinaryEncoding.tryGetInt64Value(uInt32Token);
+        TryBiResult<Long, Integer> result = JsonBinaryEncoding.tryDecodeUInt32Value(uInt32Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -931,7 +934,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Long, Integer> tryGetUInt32Value(ByteBuf uInt32Token) {
+    public static TryBiResult<Long, Integer> tryDecodeUInt32Value(ByteBuf uInt32Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             uInt32Token,
             TypeMarker.UInt32,
@@ -940,9 +943,9 @@ public class JsonBinaryEncoding {
         );
     }
 
-    public static float getFloat32Value(ByteBuf float32Token) throws JsonParseException
+    public static float decodeFloat32Value(ByteBuf float32Token) throws JsonParseException
     {
-        TryBiResult<Float, Integer> result = JsonBinaryEncoding.tryGetFloat32Value(float32Token);
+        TryBiResult<Float, Integer> result = JsonBinaryEncoding.tryDecodeFloat32Value(float32Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -951,7 +954,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Float, Integer> tryGetFloat32Value(ByteBuf float32Token) {
+    public static TryBiResult<Float, Integer> tryDecodeFloat32Value(ByteBuf float32Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             float32Token,
             TypeMarker.Float32,
@@ -960,9 +963,9 @@ public class JsonBinaryEncoding {
         );
     }
 
-    public static double getFloat64Value(ByteBuf float64Token) throws JsonParseException
+    public static double decodeFloat64Value(ByteBuf float64Token) throws JsonParseException
     {
-        TryBiResult<Double, Integer> result = JsonBinaryEncoding.tryGetFloat64Value(float64Token);
+        TryBiResult<Double, Integer> result = JsonBinaryEncoding.tryDecodeFloat64Value(float64Token);
         if (!result.isSuccess())
         {
             throw new JsonInvalidNumberException();
@@ -971,7 +974,7 @@ public class JsonBinaryEncoding {
         return result.getResultA();
     }
 
-    public static TryBiResult<Double, Integer> tryGetFloat64Value(ByteBuf float64Token) {
+    public static TryBiResult<Double, Integer> tryDecodeFloat64Value(ByteBuf float64Token) {
         return JsonBinaryEncoding.tryGetFixedWidthValue(
             float64Token,
             TypeMarker.Float64,
