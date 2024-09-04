@@ -28,6 +28,10 @@ public class TryResult<TResult> {
         return (TryResult<T>)failedResults.computeIfAbsent(clazz, (c -> new TryResult<>(false, (T)null)));
     }
 
+    public static <T> TryResult<T> failed(T result) {
+        return new TryResult<>(false, result);
+    }
+
     public static <T> TryResult<T> success(T result) {
         return new TryResult<>(true, result);
     }

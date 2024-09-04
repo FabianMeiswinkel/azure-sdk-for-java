@@ -152,72 +152,115 @@ public class JsonBinaryEncodingTest {
         buf.release();
     }
 
+    private static <T> void executeTrivialDecodingEncodingRoundTrip(
+        String jsonValue,
+        T expectedValue,
+        JsonParseFunction<ByteBuf, T> decodingFunction,
+        JsonEncodeFunction<T> encodingFunction,
+        byte[] binaryEncodedValue,
+        Class<T> clazz) throws JsonParseException {
+        LOGGER.info("JsonValue '{}'. Blob '[]' -> {}", jsonValue, Arrays.toString(binaryEncodedValue), expectedValue);
+
+        ByteBuf buf = Unpooled.wrappedBuffer(binaryEncodedValue);
+        assertThat(buf.readableBytes()).isGreaterThan(1);
+        byte serializationFormat = buf.readByte();
+        assertThat(serializationFormat).isEqualTo(JsonSerializationFormat.Binary);
+        T decodedValue = decodingFunction.apply(buf);
+        assertThat(decodedValue)
+            .as(
+                "Decoded value %d for byte[] '%s' is not equal to expected value %d.",
+                decodedValue,
+                Arrays.toString(binaryEncodedValue),
+                expectedValue)
+            .isEqualTo(expectedValue);
+        assertThat(buf.readableBytes()).isEqualTo(0);
+        buf.release();
+
+        byte[] roundTripEncodedValue = new byte[binaryEncodedValue.length];
+        ByteBuf roundTripBuffer = Unpooled.wrappedBuffer(roundTripEncodedValue);
+        roundTripBuffer.resetReaderIndex();
+        roundTripBuffer.resetWriterIndex();
+        roundTripBuffer.writeByte(JsonSerializationFormat.Binary);
+        TryResult<Integer> encodingResult = encodingFunction.apply(roundTripBuffer, decodedValue);
+        assertThat(encodingResult).isNotNull();
+        assertThat(encodingResult.isSuccess()).isEqualTo(true);
+        assertThat(encodingResult.getResult()).isEqualTo(binaryEncodedValue.length - 1);
+        assertThat(roundTripEncodedValue).isEqualTo(binaryEncodedValue);
+    }
+
     @Test(groups = "unit", dataProvider = "dotNetReferences_sbyte")
-    public void trivialByteDecoding(String jsonValue, byte expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialByteDecodingEncodingRoundTrip(String jsonValue, byte expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeInt8Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeByte(buf, value),
             binaryEncodedValue,
             Byte.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_int64")
-    public void trivialInt64Decoding(String jsonValue, long expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialInt64DecodingEncodingRoundTrip(String jsonValue, long expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeInt64Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeInt64(buf, value),
             binaryEncodedValue,
             Long.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_int32")
-    public void trivialInt32Decoding(String jsonValue, int expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialInt32DecodingEncodingRoundTrip(String jsonValue, int expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeInt32Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeInt32(buf, value),
             binaryEncodedValue,
             Integer.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_uint32")
-    public void trivialUInt32Decoding(String jsonValue, long expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialUInt32DecodingEncodingRoundTrip(String jsonValue, long expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeUInt32Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeUInt32(buf, value),
             binaryEncodedValue,
             Long.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_float")
-    public void trivialFloatDecoding(String jsonValue, float expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialFloatDecodingEncodingRoundTrip(String jsonValue, float expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeFloat32Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeFloat(buf, value),
             binaryEncodedValue,
             Float.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_double")
-    public void trivialDoubleDecoding(String jsonValue, double expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialDoubleDecodingEncodingRoundTrip(String jsonValue, double expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeFloat64Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeDouble(buf, value),
             binaryEncodedValue,
             Double.class);
     }
 
     @Test(groups = "unit", dataProvider = "dotNetReferences_int16")
-    public void trivialShortDecoding(String jsonValue, short expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
+    public void trivialShortDecodingEncodingRoundTrip(String jsonValue, short expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecodingEncodingRoundTrip(
             jsonValue,
             expectedValue,
             (buf) -> JsonBinaryEncoding.decodeInt16Value(buf),
+            (buf, value) -> JsonBinaryEncoding.tryEncodeInt16(buf, value),
             binaryEncodedValue,
             Short.class);
     }
@@ -225,5 +268,10 @@ public class JsonBinaryEncodingTest {
     @FunctionalInterface
     public interface JsonParseFunction<T, R> {
         R apply(T t) throws JsonParseException;
+    }
+
+    @FunctionalInterface
+    public interface JsonEncodeFunction<T> {
+        TryResult<Integer> apply(ByteBuf buf, T t) throws JsonParseException;
     }
 }

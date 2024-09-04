@@ -15,6 +15,7 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNo
 
 public class JsonBinaryEncoding {
     private static final int DEFAULT_TINY_CACHE_SIZE = 0;
+    private static final long UINT32_MAX_VALUE = 4294967295L;
     static final PooledByteBufAllocator allocator = new PooledByteBufAllocator(
         false,
         PooledByteBufAllocator.defaultNumHeapArena(),
@@ -981,6 +982,93 @@ public class JsonBinaryEncoding {
             8,
             Double.class
         );
+    }
+
+    public static TryResult<Integer> tryEncodeInt64(ByteBuf buf, long value) {
+        int requiredSize = TypeMarkerLength + 8;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Int64);
+        buf.writeLongLE(value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeInt32(ByteBuf buf, int value) {
+        int requiredSize = TypeMarkerLength + 4;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Int32);
+        buf.writeIntLE(value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeInt16(ByteBuf buf, short value) {
+        int requiredSize = TypeMarkerLength + 2;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Int16);
+        buf.writeShortLE(value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeByte(ByteBuf buf, byte value) {
+        int requiredSize = TypeMarkerLength + 1;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Int8);
+        buf.writeByte(value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeUInt32(ByteBuf buf, long value) {
+        checkArgument(
+            value >= 0 && value <= UINT32_MAX_VALUE,
+            "Parameter 'value' must be an unsigned Int32.");
+        int requiredSize = TypeMarkerLength + 4;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.UInt32);
+        buf.writeIntLE((int)value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeFloat(ByteBuf buf, float value) {
+        int requiredSize = TypeMarkerLength + 4;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Float32);
+        buf.writeFloatLE(value);
+
+        return TryResult.success(requiredSize);
+    }
+
+    public static TryResult<Integer> tryEncodeDouble(ByteBuf buf, double value) {
+        int requiredSize = TypeMarkerLength + 8;
+        if (buf.writableBytes() < requiredSize) {
+            return TryResult.failed(requiredSize);
+        }
+
+        buf.writeByte(TypeMarker.Float64);
+        buf.writeDoubleLE(value);
+
+        return TryResult.success(requiredSize);
     }
 
     private static class StringCompressionLookupTables
