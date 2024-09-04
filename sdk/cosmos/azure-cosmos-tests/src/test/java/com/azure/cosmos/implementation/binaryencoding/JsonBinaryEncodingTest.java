@@ -40,11 +40,19 @@ public class JsonBinaryEncodingTest {
     private final static String JSON_DOT_NET_REFERENCES_FLOAT =
         "{\"type\":\"Single\",\"values\":[{\"jsonValue\":\"-3.4028235E+38\",\"binaryValueBase64\":\"gM3//3//\"},{\"jsonValue\":\"-0.33333334\",\"binaryValueBase64\":\"gM2rqqq+\"},{\"jsonValue\":\"-0.5\",\"binaryValueBase64\":\"gM0AAAC/\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM0AAAAA\"},{\"jsonValue\":\"0.5\",\"binaryValueBase64\":\"gM0AAAA/\"},{\"jsonValue\":\"0.33333334\",\"binaryValueBase64\":\"gM2rqqo+\"},{\"jsonValue\":\"3.4028235E+38\",\"binaryValueBase64\":\"gM3//39/\"}]}";
 
+<<<<<<< Updated upstream
 
     private final static String JSON_DOT_NET_REFERENCES_DOUBLE =
         "{\"type\":\"Double\",\"values\":[{\"jsonValue\":\"-1.7976931348623157E+308\",\"binaryValueBase64\":\"gM7////////v/w==\"},{\"jsonValue\":\"-3.4028234663852886E+38\",\"binaryValueBase64\":\"gM4AAADg///vxw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"-0.5\",\"binaryValueBase64\":\"gM4AAAAAAADgvw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"0.5\",\"binaryValueBase64\":\"gM4AAAAAAADgPw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"3.4028234663852886E+38\",\"binaryValueBase64\":\"gM4AAADg///vRw==\"},{\"jsonValue\":\"1.7976931348623157E+308\",\"binaryValueBase64\":\"gM7////////vfw==\"}]}";
 
 
+=======
+    private final static String JSON_DOT_NET_REFERENCES_DOUBLE =
+        "{\"type\":\"Double\",\"values\":[{\"jsonValue\":\"-1.7976931348623157E+308\",\"binaryValueBase64\":\"gM7////////v/w==\"},{\"jsonValue\":\"-3.4028234663852886E+38\",\"binaryValueBase64\":\"gM4AAADg///vxw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"-0.5\",\"binaryValueBase64\":\"gM4AAAAAAADgvw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"0.5\",\"binaryValueBase64\":\"gM4AAAAAAADgPw==\"},{\"jsonValue\":\"0\",\"binaryValueBase64\":\"gM4AAAAAAAAAAA==\"},{\"jsonValue\":\"3.4028234663852886E+38\",\"binaryValueBase64\":\"gM4AAADg///vRw==\"},{\"jsonValue\":\"1.7976931348623157E+308\",\"binaryValueBase64\":\"gM7////////vfw==\"}]}";
+
+    private final static String JSON_DOT_NET_REFERENCES_STRING_SIMPLE =
+        "{\"type\":\"String[]\",\"values\":[{\"jsonValue\":\"Hello World|This is a test for a pretty long string exceeding one hundred characters in total length !!!!!!!!!!! Really!\",\"binaryValueBase64\":\"gOJti0hlbGxvIFdvcmxkfmxUdHoOSs9BYRC9PKeDzG85KAyCy8t0eh7EfrvPoDldnnafQWX8uFwmp91n0NtdBqHrbrK8TAaN0WF5eEwvy+egtBtEf9PDbBC77D7T0aBQKBQKhUKhUCgEkpbDbHY+BA==\"}]}";
+>>>>>>> Stashed changes
 
     private static <T> Object[][] createDotNetReferencesDataProvider(String json, JsonParseFunction<String, T> conversionFunc, Class<T> clazz) throws JsonProcessingException {
         ObjectNode doc = Utils.getSimpleObjectMapper().readValue(json, ObjectNode.class);
@@ -128,6 +136,22 @@ public class JsonBinaryEncodingTest {
         );
     }
 
+<<<<<<< Updated upstream
+=======
+    private String[] parseStringsFromJson(String jsonValue) {
+        return null;
+    }
+
+    @DataProvider(name = "dotNetReferences_string_simple")
+    public Object[][] dotNetReferences_string_simple() throws JsonProcessingException {
+        return createDotNetReferencesDataProvider(
+            JSON_DOT_NET_REFERENCES_STRING_SIMPLE,
+            (jsonValue) -> parseStringsFromJson(jsonValue),
+            String[].class
+        );
+    }
+
+>>>>>>> Stashed changes
     private static <T> void executeTrivialDecoding(
         String jsonValue,
         T expectedValue,
@@ -265,6 +289,19 @@ public class JsonBinaryEncodingTest {
             Short.class);
     }
 
+<<<<<<< Updated upstream
+=======
+    @Test(groups = "unit", dataProvider = "dotNetReferences_string_simple")
+    public void trivialSimpleStringDecoding(String jsonValue, String[] expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
+        executeTrivialDecoding(
+            jsonValue,
+            expectedValue,
+            (buf) -> JsonBinaryEncoding.d  ,
+            binaryEncodedValue,
+            String[].class);
+    }
+
+>>>>>>> Stashed changes
     @FunctionalInterface
     public interface JsonParseFunction<T, R> {
         R apply(T t) throws JsonParseException;
