@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 
 import java.util.BitSet;
 import java.util.EnumSet;
@@ -452,18 +453,17 @@ public class JsonBinaryEncoding {
         }
     }
 
-    private static void decodeString(ByteBuf stringToken, ByteBuf destinationBuffer) throws JsonParseException {
+    public static void decodeString(ByteBuf stringToken) throws JsonParseException {
         checkNotNull(stringToken, "Parameter 'stringToken' MUST NOT be null.");
-        checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
-        byte typeMarker = stringToken.getByte(0);
+        byte typeMarker = stringToken.readByte();
 
         boolean isHexadecimalString = TypeMarker.IsHexadecimalString(typeMarker);
         boolean isDateTimeString = TypeMarker.IsDateTimeString(typeMarker);
         boolean isCompressedString = TypeMarker.IsCompressedString(typeMarker);
         boolean isGuidString = TypeMarker.IsGuidString(typeMarker);
-
+        boolean isEncodedString = TypeMarker.IsEncodedString(typeMarker);
         checkArgument(
-            isHexadecimalString || isDateTimeString || isCompressedString || isGuidString,
+            isEncodedString || isHexadecimalString || isDateTimeString || isCompressedString || isGuidString,
             "token must be a hex, datetime, compressed, or guid string.");
 
         int lengthByteCount = (isHexadecimalString || isDateTimeString)
@@ -491,10 +491,13 @@ public class JsonBinaryEncoding {
             throw new JsonInvalidTokenException();
         }
 
-        int writableBytes = destinationBuffer.writableBytes();
-        if (writableBytes > 0)
+
+        if (bytesWritten > 0)
         {
-            if (bytesWritten > writableBytes)
+            ByteBuf destinationBuffer = Unpooled.wrappedBuffer(new byte[bytesWritten]);
+            destinationBuffer.resetReaderIndex();
+            destinationBuffer.resetWriterIndex();
+            if (bytesWritten > destinationBuffer.writableBytes())
             {
                 throw new IllegalArgumentException("buffer destination is too small");
             }
