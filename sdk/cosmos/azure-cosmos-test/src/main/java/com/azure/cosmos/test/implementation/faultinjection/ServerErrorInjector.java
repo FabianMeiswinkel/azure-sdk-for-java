@@ -105,6 +105,21 @@ public class ServerErrorInjector implements IServerErrorInjector {
         return false;
     }
 
+    public boolean injectGatewayChannelError(FaultInjectionRequestArgs faultInjectionRequestArgs) {
+        FaultInjectionServerErrorRule serverResponseErrorRule = this.ruleStore.findGatewayChannelError(faultInjectionRequestArgs);
+
+        if (serverResponseErrorRule != null) {
+            faultInjectionRequestArgs.getServiceRequest().faultInjectionRequestContext
+                .applyFaultInjectionRule(
+                    faultInjectionRequestArgs.getTransportRequestId(),
+                    serverResponseErrorRule.getId());
+
+            return true;
+        }
+
+        return false;
+    }
+
     @Override
     public boolean injectServerConnectionDelay(
         FaultInjectionRequestArgs faultInjectionRequestArgs,

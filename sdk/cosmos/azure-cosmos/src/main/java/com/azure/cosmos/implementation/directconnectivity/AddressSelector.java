@@ -171,8 +171,23 @@ public class AddressSelector {
     }
 
     public Mono<List<AddressInformation>> resolveAddressesAsync(RxDocumentServiceRequest request, boolean forceAddressRefresh) {
+        // if there already has address being refreshed, then stop checking scramble address rule
+        Pair<Boolean, Boolean> shouldScrambleAddresses =
+            request.faultInjectionRequestContext.getAddressForceRefreshed() ?
+                Pair.of(false, false) : this.addressInjector.shouldScrambleAddresses(request);
+
         Mono<List<AddressInformation>> resolvedAddressesObs =
             (this.addressResolver.resolveAsync(request, forceAddressRefresh))
+                .map(addresses -> {
+                    if (shouldScrambleAddresses.getLeft()) {
+                        return scrambleAddresses(
+                                Arrays.stream(addresses).collect(Collectors.toList()),
+                                shouldScrambleAddresses.getRight())
+                            .toArray(new AddressInformation[0]);
+                    }
+
+                    return addresses;
+                })
                 .map(addresses -> Arrays.stream(addresses)
                     .filter(address -> !Strings.isNullOrEmpty(address.getPhysicalUri().getURIAsString()) && Strings.areEqualIgnoreCase(address.getProtocolScheme(), this.protocol.scheme()))
                     .collect(Collectors.toList()));

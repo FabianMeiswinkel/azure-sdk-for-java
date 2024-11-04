@@ -29,6 +29,8 @@ public class FaultInjectionRuleStore {
     private final Set<FaultInjectionConnectionErrorRule> connectionErrorRuleSet = ConcurrentHashMap.newKeySet();
     private final Set<FaultInjectionServerErrorRule> serverResponseReduceLocalLSNRuleSet = ConcurrentHashMap.newKeySet();
     private final Set<FaultInjectionServerErrorRule> scrambleAddressRuleSet = ConcurrentHashMap.newKeySet();
+    private final Set<FaultInjectionServerErrorRule> gatewayChannelErrorRuleSet = ConcurrentHashMap.newKeySet();
+
 
     private final FaultInjectionRuleProcessor ruleProcessor;
 
@@ -79,6 +81,9 @@ public class FaultInjectionRuleStore {
                         case SCRAMBLE_ADDRESS_AND_REDUCE:
                             this.scrambleAddressRuleSet.add(serverErrorRule);
                             break;
+                        case CHANNEL_EXCEPTION:
+                            this.gatewayChannelErrorRuleSet.add(serverErrorRule);
+                            break;
                         default:
                             this.serverResponseErrorRuleSet.add(serverErrorRule);
                             break;
@@ -107,6 +112,17 @@ public class FaultInjectionRuleStore {
 
         for (FaultInjectionServerErrorRule serverResponseDelayRule : this.serverResponseErrorRuleSet) {
             if (serverResponseDelayRule.getConnectionType() == connectionType
+                && serverResponseDelayRule.isApplicable(requestArgs)) {
+                return serverResponseDelayRule;
+            }
+        }
+
+        return null;
+    }
+
+    public FaultInjectionServerErrorRule findGatewayChannelError(FaultInjectionRequestArgs requestArgs) {
+        for (FaultInjectionServerErrorRule serverResponseDelayRule : this.gatewayChannelErrorRuleSet) {
+            if (serverResponseDelayRule.getConnectionType() == GATEWAY
                 && serverResponseDelayRule.isApplicable(requestArgs)) {
                 return serverResponseDelayRule;
             }

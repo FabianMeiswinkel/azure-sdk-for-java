@@ -410,9 +410,6 @@ public class GatewayAddressCache implements IAddressCache {
                 JavaStreamUtils.toString(partitionKeyRangeIds, ","));
         }
 
-        // track address refresh has happened, this is only meant to be used for fault injection validation
-        request.faultInjectionRequestContext.recordAddressForceRefreshed(forceRefresh);
-
         String entryUrl = PathsHelper.generatePath(ResourceType.Document, collectionRid, true);
         HashMap<String, String> addressQuery = new HashMap<>();
 
@@ -516,6 +513,9 @@ public class GatewayAddressCache implements IAddressCache {
                     identifier,
                     null,
                     httpRequest.reactorNettyRequestRecord().getTransportRequestId());
+
+                // track address refresh has happened, this is only meant to be used for fault injection validation
+                request.faultInjectionRequestContext.recordAddressForceRefreshed(forceRefresh);
 
                 return dsr.getQueryResponse(null, Address.class);
             }).onErrorResume(throwable -> {

@@ -70,5 +70,10 @@ public enum FaultInjectionServerErrorType {
      * this will swap role of the primary replica and the first secondary replica (p -> s, s -> p).
      * The scramble address rule will only stop when there is force address refresh happened.
      */
-    SCRAMBLE_ADDRESS
+    SCRAMBLE_ADDRESS,
+
+    /***
+     * this will simulate a http socket exception
+     */
+    CHANNEL_EXCEPTION
 }

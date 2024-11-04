@@ -19,6 +19,7 @@ import com.azure.cosmos.implementation.http.HttpResponse;
 import com.azure.cosmos.implementation.http.ReactorNettyRequestRecord;
 import com.azure.cosmos.implementation.routing.PartitionKeyInternal;
 import com.azure.cosmos.implementation.routing.PartitionKeyInternalHelper;
+import io.netty.channel.ChannelException;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.timeout.ReadTimeoutException;
 import reactor.core.publisher.Mono;
@@ -150,6 +151,10 @@ public class GatewayServerErrorInjector {
                     return Mono.error(exceptionToBeInjected.v);
                 }
 
+                if (this.injectGatewayChannelError(faultInjectionRequestArgs)) {
+                    return Mono.error(new ChannelException("Fake channel exception"));
+                }
+
                 if (this.injectGatewayServerConnectionDelay(faultInjectionRequestArgs, delayToBeInjected)) {
                     Duration connectionAcquireTimeout = this.configs.getConnectionAcquireTimeout();
                     if (delayToBeInjected.v.toMillis() >= connectionAcquireTimeout.toMillis()) {
@@ -215,6 +220,15 @@ public class GatewayServerErrorInjector {
         Utils.ValueHolder<CosmosException> exceptionToBeInjected) {
         for (IServerErrorInjector serverErrorInjector : faultInjectors) {
             if(serverErrorInjector.injectServerResponseError(faultInjectionRequestArgs, exceptionToBeInjected)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean injectGatewayChannelError(FaultInjectionRequestArgs faultInjectionRequestArgs) {
+        for (IServerErrorInjector serverErrorInjector : faultInjectors) {
+            if(serverErrorInjector.injectGatewayChannelError(faultInjectionRequestArgs)) {
                 return true;
             }
         }

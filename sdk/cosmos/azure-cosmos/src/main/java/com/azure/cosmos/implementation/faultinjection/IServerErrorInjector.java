@@ -48,6 +48,8 @@ public interface IServerErrorInjector {
         FaultInjectionRequestArgs faultInjectionRequestArgs,
         Utils.ValueHolder<CosmosException> injectedException);
 
+    boolean injectGatewayChannelError(FaultInjectionRequestArgs faultInjectionRequestArgs);
+
     /***
      * Inject server connection delay error.
      *

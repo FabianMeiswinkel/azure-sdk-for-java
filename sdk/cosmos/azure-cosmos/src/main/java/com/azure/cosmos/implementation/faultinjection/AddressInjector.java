@@ -33,7 +33,8 @@ public class AddressInjector {
     }
 
     FaultInjectionRequestArgs createFaultInjectionRequestArgs(RxDocumentServiceRequest rxDocumentServiceRequest) {
-        return new FaultInjectionRequestArgs(0, null, false, rxDocumentServiceRequest) {
+        boolean isPrimary = rxDocumentServiceRequest.isReadOnlyRequest() ? false : true;
+        return new FaultInjectionRequestArgs(0, null, isPrimary, rxDocumentServiceRequest) {
             @Override
             public List<String> getPartitionKeyRangeIds() {
                 if(rxDocumentServiceRequest.getPartitionKeyRangeIdentity() != null) {

@@ -171,7 +171,8 @@ public final class FaultInjectionRuleBuilder {
                 .isMetadataOperationType(this.condition)) {
             if (serverErrorResult.getServerErrorType() != FaultInjectionServerErrorType.TOO_MANY_REQUEST
                 && serverErrorResult.getServerErrorType() != FaultInjectionServerErrorType.RESPONSE_DELAY
-                && serverErrorResult.getServerErrorType() != FaultInjectionServerErrorType.CONNECTION_DELAY) {
+                && serverErrorResult.getServerErrorType() != FaultInjectionServerErrorType.CONNECTION_DELAY
+                && serverErrorResult.getServerErrorType() != FaultInjectionServerErrorType.CHANNEL_EXCEPTION) {
 
                 throw new IllegalArgumentException("Error type " + serverErrorResult.getServerErrorType() + " is not supported for rule with metadata request");
             }
