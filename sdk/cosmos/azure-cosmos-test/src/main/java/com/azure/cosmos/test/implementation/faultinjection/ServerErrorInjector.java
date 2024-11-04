@@ -5,8 +5,12 @@ package com.azure.cosmos.test.implementation.faultinjection;
 
 import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.implementation.Utils;
+import com.azure.cosmos.implementation.apachecommons.lang.tuple.Pair;
 import com.azure.cosmos.implementation.faultinjection.FaultInjectionRequestArgs;
 import com.azure.cosmos.implementation.faultinjection.IServerErrorInjector;
+import com.azure.cosmos.test.faultinjection.FaultInjectionServerErrorType;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.time.Duration;
 
@@ -121,5 +125,44 @@ public class ServerErrorInjector implements IServerErrorInjector {
         }
 
         return false;
+    }
+
+    public boolean injectServerResponseReduceLocalLSN(FaultInjectionRequestArgs faultInjectionRequestArgs) {
+        if (faultInjectionRequestArgs == null) {
+            return false;
+        }
+
+        FaultInjectionServerErrorRule serverResponseReduceLSNRule = this.ruleStore.findServerResponseReduceLocalLSNRule(faultInjectionRequestArgs);
+        if (serverResponseReduceLSNRule != null) {
+            faultInjectionRequestArgs.getServiceRequest().faultInjectionRequestContext
+                .applyFaultInjectionRule(
+                    faultInjectionRequestArgs.getTransportRequestId(),
+                    serverResponseReduceLSNRule.getId());
+
+            return true;
+        }
+
+        return false;
+    }
+
+    @Override
+    public Pair<Boolean, Boolean> scrambleAddresses(FaultInjectionRequestArgs faultInjectionRequestArgs) {
+        if (faultInjectionRequestArgs == null) {
+            return Pair.of(false, false);
+        }
+
+        FaultInjectionServerErrorRule scrambleAddressRule = this.ruleStore.findScrambleAddressRule(faultInjectionRequestArgs);
+        if (scrambleAddressRule != null) {
+            faultInjectionRequestArgs.getServiceRequest().faultInjectionRequestContext
+                .applyFaultInjectionRule(
+                    faultInjectionRequestArgs.getTransportRequestId(),
+                    scrambleAddressRule.getId());
+
+            return Pair.of(
+                true,
+                scrambleAddressRule.getResult().getServerErrorType() == FaultInjectionServerErrorType.SCRAMBLE_ADDRESS ? false : true);
+        }
+
+        return Pair.of(false, false);
     }
 }

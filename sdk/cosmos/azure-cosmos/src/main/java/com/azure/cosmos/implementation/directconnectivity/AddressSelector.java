@@ -7,22 +7,32 @@ import com.azure.cosmos.CosmosContainerProactiveInitConfig;
 import com.azure.cosmos.implementation.GoneException;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import com.azure.cosmos.implementation.Strings;
+import com.azure.cosmos.implementation.apachecommons.lang.tuple.Pair;
+import com.azure.cosmos.implementation.faultinjection.AddressInjector;
+import com.azure.cosmos.implementation.faultinjection.IFaultInjectorProvider;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class AddressSelector {
     private final IAddressResolver addressResolver;
     private final Protocol protocol;
+    private final Random random = new Random();
+    private final AddressInjector addressInjector = new AddressInjector();
 
     public AddressSelector(IAddressResolver addressResolver, Protocol protocol) {
         this.addressResolver = addressResolver;
         this.protocol = protocol;
+    }
+
+    public void configureFaultInjectionProvider(IFaultInjectorProvider injectorProvider) {
+        this.addressInjector
+            .registerServerErrorInjector(injectorProvider.getServerErrorInjector());
     }
 
     public Mono<List<Uri>> resolveAllUriAsync(
@@ -39,12 +49,78 @@ public class AddressSelector {
         boolean includePrimary,
         boolean forceRefresh,
         List<Uri> allReplicas) {
+
         Mono<List<AddressInformation>> allReplicaAddressesObs = this.resolveAddressesAsync(request, forceRefresh);
-        return allReplicaAddressesObs.map(allReplicaAddresses -> allReplicaAddresses.stream().map(a -> {
-            allReplicas.add(a.getPhysicalUri());
-            return a;
-            }).filter(a -> includePrimary || !a.isPrimary())
-            .map(a -> a.getPhysicalUri()).collect(Collectors.toList()));
+
+        // if there already has address being refreshed, then stop checking scramble address rule
+        Pair<Boolean, Boolean> shouldScrambleAddresses =
+            request.faultInjectionRequestContext.getAddressForceRefreshed() ?
+                Pair.of(false, false) : this.addressInjector.shouldScrambleAddresses(request);
+
+        return allReplicaAddressesObs
+            .map(allAddresses -> {
+                if (shouldScrambleAddresses.getLeft()) {
+                    return scrambleAddresses(allAddresses, shouldScrambleAddresses.getRight());
+                } else {
+                    return allAddresses;
+                }})
+            .map(allReplicaAddresses ->
+                allReplicaAddresses
+                    .stream()
+                    .map(a -> {
+                        allReplicas.add(a.getPhysicalUri());
+                        return a;
+                    })
+                    .filter(a -> includePrimary || !a.isPrimary())
+                .map(a -> a.getPhysicalUri()).collect(Collectors.toList()));
+    }
+
+    private List<AddressInformation> scrambleAddresses(
+        List<AddressInformation> realAddresses,
+        boolean shouldReduceReplicaCount) {
+        AddressInformation[] scrambledAddresses =
+            new AddressInformation[realAddresses.size()];
+
+        int secondaryToBeMadePrimary = random.nextInt(realAddresses.size() - 2);
+        int secondariesProcessed = 0;
+        int nonScrambledSecondaryIndex = 2;
+        for (AddressInformation a : realAddresses) {
+            String addressAsString = a.getPhysicalUri().getURIAsString();
+            if (a.isPrimary()) {
+                scrambledAddresses[1] = new AddressInformation(
+                    a.isPublic(),
+                    false,
+                    addressAsString.substring(0, addressAsString.length() - 2) + "s/",
+                    a.getProtocol()
+                );
+            } else {
+                if (secondariesProcessed == secondaryToBeMadePrimary) {
+                    scrambledAddresses[0] = new AddressInformation(
+                        a.isPublic(),
+                        true,
+                        addressAsString.substring(0, addressAsString.length() - 2) + "p/",
+                        a.getProtocol()
+                    );
+                } else {
+                    scrambledAddresses[nonScrambledSecondaryIndex] = a;
+                    nonScrambledSecondaryIndex++;
+                }
+
+                secondariesProcessed++;
+//                if (secondariesProcessed == realAddresses.size() - 2) {
+//                    break;
+//                }
+            }
+        }
+
+        if (shouldReduceReplicaCount) {
+            return Arrays
+                .stream(
+                    Arrays.copyOfRange(scrambledAddresses, 0, scrambledAddresses.length - 1))
+                .collect(Collectors.toList());
+        } else {
+            return Arrays.stream(scrambledAddresses).collect(Collectors.toList());
+        }
     }
 
     public Mono<Uri> resolvePrimaryUriAsync(RxDocumentServiceRequest request, boolean forceAddressRefresh) {

@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 
@@ -42,6 +43,7 @@ public class StoreResponse {
     private List<String> faultInjectionRuleEvaluationResults;
 
     private final JsonNodeStorePayload responsePayload;
+    private final AtomicBoolean shouldReduceLocalLSN = new AtomicBoolean(false);
 
     public StoreResponse(
             int status,
@@ -157,6 +159,15 @@ public class StoreResponse {
         String lsnString = this.getHeaderValue(WFConstants.BackendHeaders.LSN);
         if (StringUtils.isNotEmpty(lsnString)) {
             return Long.parseLong(lsnString);
+        }
+
+        return -1;
+    }
+
+    public long getLocalLSN() {
+        String lsnString = this.getHeaderValue(WFConstants.BackendHeaders.LOCAL_LSN);
+        if (StringUtils.isNotEmpty(lsnString)) {
+            return shouldReduceLocalLSN.get() ? Long.parseLong(lsnString) - 10 : Long.parseLong(lsnString);
         }
 
         return -1;
@@ -283,5 +294,9 @@ public class StoreResponse {
             newStatusCode,
             headers,
             this.responsePayload);
+    }
+
+    public void injectReduceLocalLSN() {
+        this.shouldReduceLocalLSN.set(true);
     }
 }

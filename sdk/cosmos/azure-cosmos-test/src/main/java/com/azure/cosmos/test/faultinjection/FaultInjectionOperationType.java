@@ -62,5 +62,6 @@ public enum FaultInjectionOperationType {
     /**
      * Read change feed items
      */
-    READ_FEED_ITEM
+    READ_FEED_ITEM,
+    HEAD_COLLECTION
 }

@@ -49,7 +49,6 @@ import com.azure.cosmos.implementation.http.HttpClient;
 import com.azure.cosmos.implementation.http.HttpHeaders;
 import com.azure.cosmos.implementation.http.HttpRequest;
 import com.azure.cosmos.implementation.http.HttpResponse;
-import com.azure.cosmos.implementation.http.HttpTimeoutPolicy;
 import com.azure.cosmos.implementation.routing.PartitionKeyRangeIdentity;
 import io.netty.handler.codec.http.HttpMethod;
 import org.slf4j.Logger;
@@ -265,7 +264,7 @@ public class GatewayAddressCache implements IAddressCache {
         Utils.checkNotNullOrThrow(request, "request", "");
         Utils.checkNotNullOrThrow(partitionKeyRangeIdentity, "partitionKeyRangeIdentity", "");
 
-        logger.debug("PartitionKeyRangeIdentity {}, forceRefreshPartitionAddresses {}",
+        logger.info("PartitionKeyRangeIdentity {}, forceRefreshPartitionAddresses {}",
             partitionKeyRangeIdentity,
             forceRefreshPartitionAddresses);
         if (StringUtils.equals(partitionKeyRangeIdentity.getPartitionKeyRangeId(),
@@ -711,7 +710,7 @@ public class GatewayAddressCache implements IAddressCache {
         String collectionRid = pkRangeIdentity.getCollectionRid();
         String partitionKeyRangeId = pkRangeIdentity.getPartitionKeyRangeId();
 
-        logger.debug(
+        logger.info(
                 "getAddressesForRangeId collectionRid {}, partitionKeyRangeId {}, forceRefresh {}",
                 collectionRid,
                 partitionKeyRangeId,

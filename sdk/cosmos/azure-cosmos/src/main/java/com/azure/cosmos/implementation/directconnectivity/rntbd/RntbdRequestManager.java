@@ -1007,6 +1007,11 @@ public final class RntbdRequestManager implements ChannelHandler, ChannelInbound
 
                     return;
                 }
+
+                if (!requestRecord.args().serviceRequest().faultInjectionRequestContext.getAddressForceRefreshed() &&
+                    this.serverErrorInjector.injectRntbdServerResponseReduceLocalLSN(requestRecord)) {
+                    storeResponse.injectReduceLocalLSN();
+                }
             }
 
             requestRecord.complete(storeResponse);

@@ -19,14 +19,13 @@ import com.azure.cosmos.implementation.PartitionIsMigratingException;
 import com.azure.cosmos.implementation.PartitionKeyRangeGoneException;
 import com.azure.cosmos.implementation.PartitionKeyRangeIsSplittingException;
 import com.azure.cosmos.implementation.RMResources;
+import com.azure.cosmos.implementation.ResourceType;
 import com.azure.cosmos.implementation.RxDocumentServiceRequest;
 import com.azure.cosmos.implementation.SessionTokenHelper;
 import com.azure.cosmos.implementation.Strings;
 import com.azure.cosmos.implementation.Utils;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import com.azure.cosmos.implementation.apachecommons.lang.tuple.Pair;
-import com.azure.cosmos.implementation.directconnectivity.addressEnumerator.AddressEnumerator;
-import com.azure.cosmos.implementation.directconnectivity.rntbd.ClosedClientTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Exceptions;
@@ -43,6 +42,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -225,7 +225,7 @@ public class StoreReader {
         List<Pair<Flux<StoreResponse>, Uri>> readStoreTasks = new ArrayList<>();
         Set<String> replicaStatusesAttempting = new HashSet<>();
         Set<String> replicaStatusesNotAttempting = new HashSet<>();
-        List<Uri> addressRandomPermutation = AddressEnumerator.getTransportAddresses(entity, resolveApiResults);
+        List<Uri> addressRandomPermutation = resolveApiResults;
 
         // The health status of the Uri will change as the time goes by
         // what we really want to track is the health status snapshot at this moment
@@ -864,9 +864,7 @@ public class StoreReader {
 
             long lsn = -1;
             if (useLocalLSNBasedHeaders) {
-                if ((headerValue = storeResponse.getHeaderValue(WFConstants.BackendHeaders.LOCAL_LSN)) != null) {
-                    lsn = Long.parseLong(headerValue);
-                }
+                lsn = storeResponse.getLocalLSN();
             } else {
                 lsn = storeResponse.getLSN();
             }

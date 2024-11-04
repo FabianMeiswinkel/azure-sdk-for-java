@@ -169,5 +169,6 @@ public class ReplicatedResourceClient {
 
     public void configureFaultInjectorProvider(IFaultInjectorProvider injectorProvider) {
         this.transportClient.configureFaultInjectorProvider(injectorProvider);
+        this.addressSelector.configureFaultInjectionProvider(injectorProvider);
     }
 }

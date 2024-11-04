@@ -27,6 +27,8 @@ public class FaultInjectionRuleStore {
     private final Set<FaultInjectionServerErrorRule> serverResponseErrorRuleSet = ConcurrentHashMap.newKeySet();
     private final Set<FaultInjectionServerErrorRule> serverConnectionDelayRuleSet = ConcurrentHashMap.newKeySet();
     private final Set<FaultInjectionConnectionErrorRule> connectionErrorRuleSet = ConcurrentHashMap.newKeySet();
+    private final Set<FaultInjectionServerErrorRule> serverResponseReduceLocalLSNRuleSet = ConcurrentHashMap.newKeySet();
+    private final Set<FaultInjectionServerErrorRule> scrambleAddressRuleSet = ConcurrentHashMap.newKeySet();
 
     private final FaultInjectionRuleProcessor ruleProcessor;
 
@@ -69,6 +71,13 @@ public class FaultInjectionRuleStore {
                             break;
                         case CONNECTION_DELAY:
                             this.serverConnectionDelayRuleSet.add(serverErrorRule);
+                            break;
+                        case REDUCE_LOCAL_LSN:
+                            this.serverResponseReduceLocalLSNRuleSet.add(serverErrorRule);
+                            break;
+                        case SCRAMBLE_ADDRESS:
+                        case SCRAMBLE_ADDRESS_AND_REDUCE:
+                            this.scrambleAddressRuleSet.add(serverErrorRule);
                             break;
                         default:
                             this.serverResponseErrorRuleSet.add(serverErrorRule);
@@ -119,6 +128,34 @@ public class FaultInjectionRuleStore {
 
         return null;
     }
+
+    public FaultInjectionServerErrorRule findServerResponseReduceLocalLSNRule(FaultInjectionRequestArgs requestArgs) {
+        FaultInjectionConnectionType connectionType =
+            requestArgs instanceof RntbdFaultInjectionRequestArgs ? DIRECT : GATEWAY;
+
+        for (FaultInjectionServerErrorRule serverResponseReduceLocalLSNRule : this.serverResponseReduceLocalLSNRuleSet) {
+            if (serverResponseReduceLocalLSNRule.getConnectionType() == connectionType
+                && serverResponseReduceLocalLSNRule.isApplicable(requestArgs)) {
+                return serverResponseReduceLocalLSNRule;
+            }
+        }
+
+        return null;
+    }
+
+    public FaultInjectionServerErrorRule findScrambleAddressRule(FaultInjectionRequestArgs requestArgs) {
+
+        for (FaultInjectionServerErrorRule scrambleAddressRule : this.scrambleAddressRuleSet) {
+            if (scrambleAddressRule.getConnectionType() == DIRECT
+                && scrambleAddressRule.isApplicable(requestArgs)) {
+                return scrambleAddressRule;
+            }
+        }
+
+        return null;
+    }
+
+
 
     public boolean containsRule(FaultInjectionConnectionErrorRule rule) {
         return this.connectionErrorRuleSet.contains(rule);

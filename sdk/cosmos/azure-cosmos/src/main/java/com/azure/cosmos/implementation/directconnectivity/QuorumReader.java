@@ -167,7 +167,10 @@ public class QuorumReader {
                                     secondaryQuorumReadResult.selectedLsn,
                                     secondaryQuorumReadResult.globalCommittedSelectedLsn);
 
+
                                         return barrierRequestObs.flux().flatMap(barrierRequest -> {
+                                            barrierRequest.faultInjectionRequestContext = entity.faultInjectionRequestContext;
+
                                     Mono<Boolean> readBarrierObs = this.waitForReadBarrierAsync(
                                         barrierRequest,
                                         true /* include primary */,

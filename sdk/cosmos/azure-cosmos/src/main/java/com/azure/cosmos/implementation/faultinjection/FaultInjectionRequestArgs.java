@@ -22,7 +22,7 @@ public abstract class FaultInjectionRequestArgs {
         boolean isPrimary,
         RxDocumentServiceRequest serviceRequest) {
 
-        checkNotNull(requestURI, "Argument 'requestURI' can not null");
+        //checkNotNull(requestURI, "Argument 'requestURI' can not null");
         checkNotNull(serviceRequest, "Argument 'serviceRequest' can not be null");
 
         this.transportRequestId = transportRequestId;

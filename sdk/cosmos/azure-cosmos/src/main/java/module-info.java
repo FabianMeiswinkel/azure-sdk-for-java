@@ -47,7 +47,7 @@ module com.azure.cosmos {
     exports com.azure.cosmos.implementation.batch to com.azure.cosmos.encryption;
     exports com.azure.cosmos.implementation.patch to com.azure.cosmos.encryption;
     exports com.azure.cosmos.implementation.query to com.azure.cosmos.encryption;
-    exports com.azure.cosmos.implementation.apachecommons.lang.tuple to com.azure.cosmos.encryption, com.azure.cosmos.kafka.connect;
+    exports com.azure.cosmos.implementation.apachecommons.lang.tuple to com.azure.cosmos.encryption, com.azure.cosmos.kafka.connect, com.azure.cosmos.test;
 
     // exporting some packages specifically for Jackson
     opens com.azure.cosmos.implementation.caches to com.fasterxml.jackson.databind;
