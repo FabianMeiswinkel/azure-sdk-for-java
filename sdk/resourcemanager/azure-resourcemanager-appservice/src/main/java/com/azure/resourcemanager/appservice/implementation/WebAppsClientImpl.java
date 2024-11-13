@@ -28270,7 +28270,7 @@ public final class WebAppsClientImpl
         RemotePrivateEndpointConnectionArmResourceInner privateEndpointWrapper) {
         return beginApproveOrRejectPrivateEndpointConnectionAsync(resourceGroupName, name,
             privateEndpointConnectionName, privateEndpointWrapper).last()
-            .flatMap(this.client::getLroFinalResultOrError);
+                .flatMap(this.client::getLroFinalResultOrError);
     }
 
     /**
@@ -28294,7 +28294,7 @@ public final class WebAppsClientImpl
         RemotePrivateEndpointConnectionArmResourceInner privateEndpointWrapper, Context context) {
         return beginApproveOrRejectPrivateEndpointConnectionAsync(resourceGroupName, name,
             privateEndpointConnectionName, privateEndpointWrapper, context).last()
-            .flatMap(this.client::getLroFinalResultOrError);
+                .flatMap(this.client::getLroFinalResultOrError);
     }
 
     /**
@@ -44183,7 +44183,7 @@ public final class WebAppsClientImpl
         String domainOwnershipIdentifierName, String slot, IdentifierInner domainOwnershipIdentifier) {
         return createOrUpdateDomainOwnershipIdentifierSlotWithResponseAsync(resourceGroupName, name,
             domainOwnershipIdentifierName, slot, domainOwnershipIdentifier)
-            .flatMap(res -> Mono.justOrEmpty(res.getValue()));
+                .flatMap(res -> Mono.justOrEmpty(res.getValue()));
     }
 
     /**
@@ -44531,7 +44531,7 @@ public final class WebAppsClientImpl
         String domainOwnershipIdentifierName, String slot, IdentifierInner domainOwnershipIdentifier) {
         return updateDomainOwnershipIdentifierSlotWithResponseAsync(resourceGroupName, name,
             domainOwnershipIdentifierName, slot, domainOwnershipIdentifier)
-            .flatMap(res -> Mono.justOrEmpty(res.getValue()));
+                .flatMap(res -> Mono.justOrEmpty(res.getValue()));
     }
 
     /**
@@ -57052,7 +57052,7 @@ public final class WebAppsClientImpl
         RemotePrivateEndpointConnectionArmResourceInner privateEndpointWrapper) {
         return beginApproveOrRejectPrivateEndpointConnectionSlotAsync(resourceGroupName, name,
             privateEndpointConnectionName, slot, privateEndpointWrapper).last()
-            .flatMap(this.client::getLroFinalResultOrError);
+                .flatMap(this.client::getLroFinalResultOrError);
     }
 
     /**
@@ -57077,7 +57077,7 @@ public final class WebAppsClientImpl
         RemotePrivateEndpointConnectionArmResourceInner privateEndpointWrapper, Context context) {
         return beginApproveOrRejectPrivateEndpointConnectionSlotAsync(resourceGroupName, name,
             privateEndpointConnectionName, slot, privateEndpointWrapper, context).last()
-            .flatMap(this.client::getLroFinalResultOrError);
+                .flatMap(this.client::getLroFinalResultOrError);
     }
 
     /**
