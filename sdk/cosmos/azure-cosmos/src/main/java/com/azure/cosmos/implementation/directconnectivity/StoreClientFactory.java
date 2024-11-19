@@ -57,7 +57,7 @@ public class StoreClientFactory implements AutoCloseable {
                 this.transportClient =
                     new RntbdTransportClient(
                         rntbdOptions,
-                        configs.getSslContext(connectionPolicy.isServerCertValidationDisabled()),
+                        configs.getSslContext(),
                         addressResolver,
                         clientTelemetry,
                         globalEndpointManager);

@@ -150,7 +150,6 @@ public class CosmosClientBuilder implements
     private final List<CosmosOperationPolicy> requestPolicies;
     private CosmosItemSerializer defaultCustomSerializer;
     private boolean isRegionScopedSessionCapturingEnabled = false;
-    private boolean serverCertValidationDisabled = false;
 
     /**
      * Instantiates a new Cosmos client builder.
@@ -1266,21 +1265,16 @@ public class CosmosClientBuilder implements
         this.connectionPolicy.setEndpointDiscoveryEnabled(this.endpointDiscoveryEnabled);
         this.connectionPolicy.setMultipleWriteRegionsEnabled(this.multipleWriteRegionsEnabled);
         this.connectionPolicy.setReadRequestsFallbackEnabled(this.readRequestsFallbackEnabled);
-        this.connectionPolicy.setServerCertValidationDisabled(this.serverCertValidationDisabled);
         return this.connectionPolicy;
     }
 
-    void validateConfig() {
+    private void validateConfig() {
         URI uri;
         try {
             uri = new URI(serviceEndpoint);
             if (!Strings.isNullOrEmpty(uri.getPath()) || !Strings.isNullOrEmpty(uri.getQuery())) {
                 serviceEndpoint = uri.getScheme() + "://" + uri.getAuthority() + "/";
                 uri = new URI(serviceEndpoint);
-            }
-
-            if (Configs.isEmulatorServerCertValidationDisabled() && isEmulatorHost(uri)) {
-                this.serverCertValidationDisabled = true;
             }
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException("invalid serviceEndpoint", e);
@@ -1331,17 +1325,6 @@ public class CosmosClientBuilder implements
     CosmosClientBuilder configs(Configs configs) {
         this.configs = configs;
         return this;
-    }
-
-    private boolean isEmulatorHost(URI uri) {
-        if (StringUtils.isNotEmpty(Configs.getEmulatorHost())) {
-            return Configs.getEmulatorHost().equals(uri.getHost());
-        }
-
-        return "localhost".equalsIgnoreCase(uri.getHost())
-            || "[::1]".equals(uri.getHost())
-            || "127.0.0.1".equals(uri.getHost())
-            || "[0:0:0:0:0:0:0:1]".equals(uri.getHost());
     }
 
     private void ifThrowIllegalArgException(boolean value, String error) {

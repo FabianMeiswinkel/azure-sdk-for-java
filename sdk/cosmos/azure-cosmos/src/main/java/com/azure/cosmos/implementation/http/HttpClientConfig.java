@@ -26,7 +26,6 @@ public class HttpClientConfig {
     public String reactorNetworkLogCategory = "com.azure.cosmos.netty-network";
     private ProxyOptions proxy;
     private boolean connectionKeepAlive = true;
-    private boolean serverCertValidationDisabled = false;
 
     public HttpClientConfig(Configs configs) {
         this.configs = configs;
@@ -92,11 +91,6 @@ public class HttpClientConfig {
         return this;
     }
 
-    public HttpClientConfig withServerCertValidationDisabled(boolean serverCertValidationDisabled) {
-        this.serverCertValidationDisabled = serverCertValidationDisabled;
-        return this;
-    }
-
     public Configs getConfigs() {
         return configs;
     }
@@ -147,10 +141,6 @@ public class HttpClientConfig {
 
     public int getMaxBodyLength() {
         return maxBodyLength;
-    }
-
-    public boolean isServerCertValidationDisabled() {
-        return serverCertValidationDisabled;
     }
 
     public String toDiagnosticsString() {
