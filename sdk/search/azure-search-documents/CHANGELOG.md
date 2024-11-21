@@ -1,6 +1,6 @@
 # Release History
 
-## 11.8.0-beta.3 (Unreleased)
+## 11.8.0-beta.4 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,12 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 11.8.0-beta.3 (2024-11-20)
+
+### Bugs Fixed
+
+- Fixed a bug where `SearchOptions` was missing setters for `QueryDebugMode`, `QueryLanguage`, and `QuerySpellerType`.
 
 ## 11.8.0-beta.2 (2024-11-18)
 
