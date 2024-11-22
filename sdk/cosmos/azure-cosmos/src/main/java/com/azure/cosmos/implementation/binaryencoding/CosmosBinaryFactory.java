@@ -4,7 +4,7 @@ package com.azure.cosmos.implementation.binaryencoding;
 
 import com.fasterxml.jackson.core.JsonFactory;
 
-public class Factory extends JsonFactory {
+public class CosmosBinaryFactory extends JsonFactory {
     private static final long serialVersionUID = 1L;
 
 

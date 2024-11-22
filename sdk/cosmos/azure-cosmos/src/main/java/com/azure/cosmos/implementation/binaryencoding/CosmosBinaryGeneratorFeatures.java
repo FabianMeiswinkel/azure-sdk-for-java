@@ -4,7 +4,7 @@ package com.azure.cosmos.implementation.binaryencoding;
 
 import com.fasterxml.jackson.core.FormatFeature;
 
-public enum GeneratorFeatures implements FormatFeature {
+public enum CosmosBinaryGeneratorFeatures implements FormatFeature {
     ;
 
     @Override

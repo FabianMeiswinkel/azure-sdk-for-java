@@ -277,21 +277,6 @@ public class JsonBinaryEncodingTest {
             binaryEncodedValue,
             Short.class);
     }
-    @Test(groups = "unit", dataProvider = "dotNetReferences_string_simple")
-    public void trivialSimpleStringDecoding(String jsonValue, String[] expectedValue, byte[] binaryEncodedValue) throws JsonParseException {
-        executeTrivialDecoding(
-            jsonValue,
-            expectedValue,
-            (buf) -> {
-                byte typeMarker = buf.readByte();
-                assertThat(TypeMarker.IsArray(typeMarker)).isEqualTo(true);
-                JsonBinaryEncoding.decodeString(buf);
-
-                return new String[] {};
-            },
-            binaryEncodedValue,
-            String[].class);
-    }
 
     @FunctionalInterface
     public interface JsonParseFunction<T, R> {

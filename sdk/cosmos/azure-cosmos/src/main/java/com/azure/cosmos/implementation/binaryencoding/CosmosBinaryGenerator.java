@@ -13,10 +13,10 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
-public class Generator extends GeneratorBase {
+public class CosmosBinaryGenerator extends GeneratorBase {
 
-    public Generator(IOContext ioCtxt, int stdFeatures, int binaryFeatures,
-                     ObjectCodec codec, OutputStream out) {
+    public CosmosBinaryGenerator(IOContext ioCtxt, int stdFeatures, int binaryFeatures,
+                                 ObjectCodec codec, OutputStream out) {
         super(stdFeatures, codec, ioCtxt);
 
     }

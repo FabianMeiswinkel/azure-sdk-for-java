@@ -7,6 +7,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.BitSet;
 import java.util.EnumSet;
@@ -15,6 +17,7 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkAr
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
 public class JsonBinaryEncoding {
+    private final static Logger LOG = LoggerFactory.getLogger(JsonBinaryEncoding.class);
     private static final int DEFAULT_TINY_CACHE_SIZE = 0;
     private static final long UINT32_MAX_VALUE = 4294967295L;
     static final PooledByteBufAllocator allocator = new PooledByteBufAllocator(
@@ -462,8 +465,10 @@ public class JsonBinaryEncoding {
         boolean isCompressedString = TypeMarker.IsCompressedString(typeMarker);
         boolean isGuidString = TypeMarker.IsGuidString(typeMarker);
         boolean isEncodedString = TypeMarker.IsEncodedString(typeMarker);
+        boolean isEncodedLengthString = TypeMarker.IsEncodedLengthString(typeMarker);
+
         checkArgument(
-            isEncodedString || isHexadecimalString || isDateTimeString || isCompressedString || isGuidString,
+            isHexadecimalString || isDateTimeString || isCompressedString || isGuidString,
             "token must be a hex, datetime, compressed, or guid string.");
 
         int lengthByteCount = (isHexadecimalString || isDateTimeString)

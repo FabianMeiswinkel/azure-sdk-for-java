@@ -4,6 +4,7 @@
 package com.azure.cosmos.implementation;
 
 import com.azure.core.util.CoreUtils;
+import com.fasterxml.jackson.core.Version;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -319,6 +320,33 @@ public class HttpConstants {
         public static String getSdkVersion() {
             return SDK_VERSION_SNAPSHOT_INSTEAD_OF_BETA ?
                 getSdkVersionWithSnapshotInsteadOfBeta() :  SDK_VERSION_RAW;
+        }
+
+        public static Version getSdkVersionAsVersion() {
+            String versionText = getSdkVersion();
+
+            int major = 0;
+            int minor = 0;
+            int patch = 0;
+            String snapshot = null;
+            int snapshotSeparator = versionText.indexOf("_");
+            if (snapshotSeparator > 0 && snapshotSeparator < versionText.length() - 1) {
+                snapshot = versionText.substring(snapshotSeparator + 1);
+                versionText = versionText.substring(0, snapshotSeparator);
+            }
+
+            String[] versionFragments = versionText.split(".");
+            major = Integer.parseInt(versionFragments[0]);
+
+            if (versionFragments.length > 1) {
+                minor = Integer.parseInt(versionFragments[1]);
+            }
+
+            if (versionFragments.length > 2) {
+                patch = Integer.parseInt(versionFragments[2]);
+            }
+
+            return new Version(major, minor, patch, snapshot);
         }
 
         public static void useSnapshotInsteadOfBeta() {
