@@ -1,6 +1,6 @@
 # Release History
 
-## 11.8.0-beta.4 (Unreleased)
+## 11.8.0-beta.5 (Unreleased)
 
 ### Features Added
 
@@ -9,6 +9,14 @@
 ### Bugs Fixed
 
 ### Other Changes
+
+## 11.8.0-beta.4 (2024-11-22)
+
+### Bugs Fixed
+
+ - Fixed bug in the serialization of `SearchDocumentsResult` `debuginfo` property.
+ - Fixed missing properties bug in `SemanticSearchResults`.
+   - Added missing properties `debugInfo` and `semanticQueryRewritesResultType`.
 
 ## 11.8.0-beta.3 (2024-11-20)
 
