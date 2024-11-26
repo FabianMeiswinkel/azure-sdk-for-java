@@ -6,12 +6,14 @@ import com.azure.cosmos.BridgeInternal;
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.CosmosItemSerializer;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
+import com.azure.cosmos.implementation.binaryencoding.CosmosBinaryAwareJsonFactory;
 import com.azure.cosmos.implementation.uuid.EthernetAddress;
 import com.azure.cosmos.implementation.uuid.Generators;
 import com.azure.cosmos.implementation.uuid.impl.TimeBasedGenerator;
 import com.azure.cosmos.models.CosmosChangeFeedRequestOptions;
 import com.azure.cosmos.models.DedicatedGatewayRequestOptions;
 import com.azure.cosmos.models.ModelBridgeInternal;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -131,7 +133,7 @@ public class Utils {
 
         objectMapper.registerModule(new JavaTimeModule());
 
-        return objectMapper;
+        return new CosmosBinaryAwareObjectMapper(objectMapper);
     }
 
     private static void tryToLoadJacksonPerformanceLibrary(ObjectMapper objectMapper) {
@@ -784,5 +786,11 @@ public class Utils {
                     String.valueOf(DEFAULT_ALLOW_UNQUOTED_CONTROL_CHARS)));
 
         return Boolean.parseBoolean(shouldAllowUnquotedControlCharsConfig);
+    }
+
+    private static final class CosmosBinaryAwareObjectMapper extends ObjectMapper {
+        public CosmosBinaryAwareObjectMapper(ObjectMapper mapper) {
+            super(mapper, new CosmosBinaryAwareJsonFactory(mapper));
+        }
     }
 }

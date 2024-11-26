@@ -31,31 +31,40 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
     private final JsonReadContext streamReadContext;
 
-    private final ByteBuf payload;
+    private final byte[] payload;
 
-    protected CosmosBinaryParser(IOContext ctxt, int cosmosBinaryFeatures, int parserFeatures,
-                                 ByteQuadsCanonicalizer sym, ByteBuf payload)
+    private transient int offset;
+    private transient int len;
+
+    protected CosmosBinaryParser(
+        byte[] payload,
+        int offset,
+        int len,
+        IOContext ctxt,
+        int parserFeatures,
+        ByteQuadsCanonicalizer byteSymbolCanonicalizer)
     {
         super(parserFeatures);
 
         checkNotNull(ctxt, "Argument 'ctxt' must not be null");
-        checkNotNull(sym, "Argument 'sym' must not be null");
+        checkNotNull(byteSymbolCanonicalizer, "Argument 'byteSymbolCanonicalizer' must not be null");
         checkNotNull(payload, "Argument 'payload' must not be null");
 
         this.cosmosBinaryFeatures = cosmosBinaryFeatures;
         this.ioContext = ctxt;
-        this.symbols = sym;
-        this.symbolsCanonical = sym.isCanonicalizing();
+        this.symbols = byteSymbolCanonicalizer;
+        this.symbolsCanonical = byteSymbolCanonicalizer.isCanonicalizing();
         DupDetector dups = Feature.STRICT_DUPLICATE_DETECTION.enabledIn(parserFeatures)
             ? DupDetector.rootDetector(this) : null;
         this.streamReadContext= JsonReadContext.createRootContext(dups);
         this.payload = payload;
+        this.offset = offset;
+        this.len = len;
     }
-
-    Continue here
 
     @Override
     public JsonToken nextToken() throws IOException {
+        Implement this
         return null;
     }
 

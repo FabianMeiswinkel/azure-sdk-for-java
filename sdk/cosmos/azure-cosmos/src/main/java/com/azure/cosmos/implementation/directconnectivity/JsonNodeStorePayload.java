@@ -5,6 +5,7 @@ package com.azure.cosmos.implementation.directconnectivity;
 
 import com.azure.cosmos.implementation.Configs;
 import com.azure.cosmos.implementation.Utils;
+import com.azure.cosmos.implementation.binaryencoding.JsonSerializationFormat;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.util.internal.StringUtil;
