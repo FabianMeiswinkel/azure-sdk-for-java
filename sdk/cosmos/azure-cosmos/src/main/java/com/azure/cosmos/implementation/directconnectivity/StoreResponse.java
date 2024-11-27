@@ -10,23 +10,17 @@ import com.azure.cosmos.implementation.directconnectivity.rntbd.RntbdChannelAcqu
 import com.azure.cosmos.implementation.directconnectivity.rntbd.RntbdChannelStatistics;
 import com.azure.cosmos.implementation.directconnectivity.rntbd.RntbdEndpointStatistics;
 import com.fasterxml.jackson.databind.JsonNode;
-import io.netty.buffer.ByteBufInputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.netty.buffer.ByteBuf;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
-
 /**
  * Used internally to represents a response from the store.
  */
 public class StoreResponse {
-    private static final Logger logger = LoggerFactory.getLogger(StoreResponse.class.getSimpleName());
     final private int status;
     final private String[] responseHeaderNames;
     final private String[] responseHeaderValues;
@@ -46,11 +40,8 @@ public class StoreResponse {
     public StoreResponse(
             int status,
             Map<String, String> headerMap,
-            ByteBufInputStream contentStream,
-            int responsePayloadLength) {
+            ByteBuf contentBuffer) {
 
-        checkArgument((contentStream == null) == (responsePayloadLength == 0),
-            "Parameter 'contentStream' must be consistent with 'responsePayloadLength'.");
         requestTimeline = RequestTimeline.empty();
         responseHeaderNames = new String[headerMap.size()];
         responseHeaderValues = new String[headerMap.size()];
@@ -64,17 +55,8 @@ public class StoreResponse {
 
         this.status = status;
         replicaStatusList = new HashMap<>();
-        if (contentStream != null) {
-            try {
-                this.responsePayload = new JsonNodeStorePayload(contentStream, responsePayloadLength);
-            }
-            finally {
-                try {
-                    contentStream.close();
-                } catch (IOException e) {
-                    logger.debug("Could not successfully close content stream.", e);
-                }
-            }
+        if (contentBuffer != null) {
+            this.responsePayload = new JsonNodeStorePayload(contentBuffer);
         } else {
             this.responsePayload = null;
         }

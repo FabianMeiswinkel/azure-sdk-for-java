@@ -261,7 +261,12 @@ public class JsonBinaryEncoding {
 
     private static int getFixedSizedValueAsUInt16(ByteBuf buffer)
     {
-        return buffer.getChar(0);
+        return buffer.readChar();
+    }
+
+    private static short getFixedSizedValueAsUByte(ByteBuf buffer)
+    {
+         return (short)(buffer.readByte() & 0xFF);
     }
 
     private static int getEncodedStringValueLength(ByteBuf stringToken)
@@ -379,13 +384,6 @@ public class JsonBinaryEncoding {
         }
 
         return true;
-    }
-
-    public static int getCompressedStringLength(
-        int length,
-        int numberOfBits) {
-
-        return ((length * numberOfBits) + 7) / 8;
     }
 
     private static IllegalArgumentException getIllegalTypeMarkerException(byte typeMarker) {
@@ -668,7 +666,7 @@ public class JsonBinaryEncoding {
         checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
         checkArgument(
             encodedString.readableBytes() ==
-                JsonBinaryEncoding.ValueLengths.GetCompressedStringLength(destinationBuffer.readableBytes(), 4),
+                JsonBinaryEncoding.getCompressedStringLength(destinationBuffer.readableBytes(), 4),
             "Destination buffer is too small.");
 
         for (int index = 0; index < destinationBuffer.writableBytes() / 2; index++)
@@ -1541,6 +1539,212 @@ public class JsonBinaryEncoding {
         };
     }
 
+    public static int getValueLength(ByteBuf buffer)
+    {
+        checkNotNull(buffer, "Parameter 'buffer' MUST NOT be null.");
+        int unsignedTypeMarker = buffer.readUnsignedByte();
+        int lengthFromLookup = ValueLengths.Lookup[unsignedTypeMarker];
+        long length = lengthFromLookup;
+        if (lengthFromLookup < 0)
+        {
+            // Length was negative meaning we need to look into the buffer to find the length
+            switch (lengthFromLookup)
+            {
+                case ValueLengths.L1:
+                    length = TypeMarkerLength + OneByteLength + buffer.readUnsignedByte();
+                    break;
+                case ValueLengths.L2:
+                    length = TypeMarkerLength + TwoByteLength + buffer.readUnsignedShort();
+                    break;
+                case ValueLengths.L4:
+                    length = TypeMarkerLength + FourByteLength + buffer.readUnsignedInt();
+                    break;
+
+                case ValueLengths.LC1:
+                    length = TypeMarkerLength + OneByteLength + OneByteCount + buffer.readUnsignedByte();
+                    break;
+                case ValueLengths.LC2:
+                    length = TypeMarkerLength + TwoByteLength + TwoByteCount + buffer.readUnsignedShort();
+                    break;
+                case ValueLengths.LC4:
+                    buffer.skipBytes(1);
+                    length = TypeMarkerLength + FourByteLength + FourByteCount + buffer.readUnsignedInt();
+                    break;
+
+                case ValueLengths.Arr1:
+                    long arrayOneItemLength = getValueLength(buffer);
+                    length = arrayOneItemLength == 0 ? 0 : 1 + arrayOneItemLength;
+                    break;
+
+                case ValueLengths.Obj1:
+                    long nameLength = getValueLength(buffer);
+                    if (nameLength == 0)
+                    {
+                        length = 0;
+                    }
+                    else
+                    {
+                        long valueLength = getValueLength(buffer);
+                        length = TypeMarkerLength + nameLength + valueLength;
+                    }
+                    break;
+
+                case ValueLengths.CS4L1:
+                    length = TypeMarkerLength + OneByteLength + getCompressedStringLength(buffer.readUnsignedByte(), 4);
+                    break;
+                case ValueLengths.CS7L1:
+                    length = TypeMarkerLength + OneByteLength + getCompressedStringLength(buffer.readUnsignedByte(), 7);
+                    break;
+                case ValueLengths.CS7L2:
+                    length = TypeMarkerLength + TwoByteLength + getCompressedStringLength(buffer.readUnsignedShort(), 7);
+                    break;
+
+                case ValueLengths.CS4BL1:
+                    length = TypeMarkerLength + OneByteLength + OneByteBaseChar + getCompressedStringLength(buffer.readUnsignedByte(), 4);
+                    break;
+                case ValueLengths.CS5BL1:
+                    length = TypeMarkerLength + OneByteLength + OneByteBaseChar + getCompressedStringLength(buffer.readUnsignedByte(), 5);
+                    break;
+                case ValueLengths.CS6BL1:
+                    length = TypeMarkerLength + OneByteLength + OneByteBaseChar + getCompressedStringLength(buffer.readUnsignedByte(), 6);
+                    break;
+
+                default:
+                    throw new IllegalArgumentException("Invalid variable length type marker length: " + length);
+            }
+        }
+
+        return (int)length;
+    }
+
+
+    public static int getCompressedStringLength(int length, int numberOfBits) {
+        return ((length * numberOfBits) + 7) / 8;
+    }
+
+    public static int getUniformNumberArrayItemSize(byte typeMarker)
+    {
+        return ValueLengths.Lookup[typeMarker] - 1;
+    }
+
+    public static int getArrayOrObjectPrefixLength(byte typeMarker)
+    {
+        int prefixLength;
+        switch (typeMarker)
+        {
+            case TypeMarker.EmptyArray:
+            case TypeMarker.SingleItemArray:
+            case TypeMarker.EmptyObject:
+            case TypeMarker.SinglePropertyObject:
+                prefixLength = 1;
+                break;
+
+            case TypeMarker.Object1ByteLength:
+            case TypeMarker.Array1ByteLength:
+                prefixLength = 1 + 1;
+                break;
+            case TypeMarker.Object2ByteLength:
+            case TypeMarker.Array2ByteLength:
+                prefixLength = 1 + 2;
+                break;
+            case TypeMarker.Array4ByteLength:
+            case TypeMarker.Object4ByteLength:
+                prefixLength = 1 + 4;
+                break;
+
+            case TypeMarker.Array1ByteLengthAndCount:
+            case TypeMarker.Object1ByteLengthAndCount:
+            case TypeMarker.ArrNumC1:
+                prefixLength = 1 + 1 + 1;
+                break;
+            case TypeMarker.Array2ByteLengthAndCount:
+            case TypeMarker.Object2ByteLengthAndCount:
+                prefixLength = 1 + 2 + 2;
+                break;
+            case TypeMarker.Array4ByteLengthAndCount:
+            case TypeMarker.Object4ByteLengthAndCount:
+                prefixLength = 1 + 4 + 4;
+                break;
+
+            case TypeMarker.ArrNumC2:
+                prefixLength = 1 + 1 + 2;
+                break;
+            case TypeMarker.ArrArrNumC1C1:
+                prefixLength = 1 + 1 + 1 + 1 + 1;
+                break;
+            case TypeMarker.ArrArrNumC2C2:
+                prefixLength = 1 + 1 + 1 + 2 + 2;
+                break;
+
+            default:
+                throw new IllegalArgumentException("Unknown typemarker: " + typeMarker);
+        }
+
+        return prefixLength;
+    }
+
+    public static UniformArrayInfo getUniformArrayInfo(ByteBuf arrayPrefix, boolean isNested)
+    {
+        checkArgument(
+            arrayPrefix.readableBytes() > 0,
+            "Argument 'arrayPrefix' is  empty");
+
+        byte arrayTypeMarker = arrayPrefix.readByte();
+        switch (arrayTypeMarker)
+        {
+            case TypeMarker.ArrNumC1:
+            {
+                byte itemTypeMarker = arrayPrefix.readByte();
+                // | Array TM | Number Item TM | Number Item Count |
+                return new UniformArrayInfo(
+                    itemTypeMarker,
+                    isNested ? 0 : 3,
+                    getFixedSizedValueAsUByte(arrayPrefix),
+                    getUniformNumberArrayItemSize(itemTypeMarker),
+                    null);
+            }
+
+            case TypeMarker.ArrNumC2:
+            {
+                byte itemTypeMarker = arrayPrefix.readByte();
+                // | Array TM | Number Item TM | Number Item Count |
+                return new UniformArrayInfo(
+                    itemTypeMarker,
+                    isNested ? 0 : 4,
+                    getFixedSizedValueAsUInt16(arrayPrefix),
+                    getUniformNumberArrayItemSize(itemTypeMarker),
+                    null);
+            }
+
+            case TypeMarker.ArrArrNumC1C1:
+            case TypeMarker.ArrArrNumC2C2:
+            {
+                byte itemTypeMarker = arrayPrefix.getByte(1);
+                // | Array TM | Array Item TM | Number Item TM | Number Item Count | Array Item Count |
+                UniformArrayInfo nestedArrayInfo = getUniformArrayInfo(arrayPrefix, true);
+
+                int itemCount;
+                if (arrayTypeMarker == TypeMarker.ArrArrNumC1C1) {
+                    arrayPrefix.skipBytes(2);
+                    itemCount = getFixedSizedValueAsUByte(arrayPrefix);
+                } else {
+                    arrayPrefix.skipBytes(3);
+                    itemCount = getFixedSizedValueAsUInt16(arrayPrefix);
+                }
+
+                return new UniformArrayInfo(
+                    itemTypeMarker,
+                    itemCount,
+                    nestedArrayInfo.ItemCount * nestedArrayInfo.ItemSize,
+                    getArrayOrObjectPrefixLength(arrayTypeMarker),
+                    nestedArrayInfo);
+            }
+
+            default:
+                return null;
+        }
+    }
+
     private static class ValueLengths
     {
         private static final int L1 = -1;           // 1-byte length
@@ -1706,86 +1910,5 @@ public class JsonBinaryEncoding {
             0,      // <special value reserved> 0xFE
             0,      // Invalid
         };
-
-        public static long GetValueLength(ByteBuf buffer)
-        {
-            checkNotNull(buffer, "Parameter 'buffer' MUST NOT be null.");
-            int lengthFromLookup = ValueLengths.Lookup[buffer.getByte(0)];
-            long length = lengthFromLookup;
-            if (lengthFromLookup < 0)
-            {
-                // Length was negative meaning we need to look into the buffer to find the length
-                switch (lengthFromLookup)
-                {
-                    case L1:
-                        length = TypeMarkerLength + OneByteLength + buffer.getUnsignedByte(1);
-                        break;
-                    case L2:
-                        length = TypeMarkerLength + TwoByteLength + buffer.getUnsignedShort(1);
-                        break;
-                    case L4:
-                        length = TypeMarkerLength + FourByteLength + buffer.getUnsignedInt(1);
-                        break;
-
-                    case LC1:
-                        length = TypeMarkerLength + OneByteLength + OneByteCount + buffer.getUnsignedByte(1);
-                        break;
-                    case LC2:
-                        length = TypeMarkerLength + TwoByteLength + TwoByteCount + buffer.getUnsignedShort(1);
-                        break;
-                    case LC4:
-                        length = TypeMarkerLength + FourByteLength + FourByteCount + buffer.getUnsignedInt(2);
-                        break;
-
-                    case Arr1:
-                        long arrayOneItemLength = ValueLengths.GetValueLength(buffer.slice(1, buffer.readableBytes() - 1));
-                        length = arrayOneItemLength == 0 ? 0 : 1 + arrayOneItemLength;
-                        break;
-
-                    case Obj1:
-                        long nameLength = ValueLengths.GetValueLength(buffer.slice(1, buffer.readableBytes() - 1));
-                        if (nameLength == 0)
-                        {
-                            length = 0;
-                        }
-                        else
-                        {
-                            long valueLength = ValueLengths.GetValueLength(buffer.slice(1 + (int)nameLength, buffer.readableBytes() - 1 - (int)nameLength));
-                            length = TypeMarkerLength + nameLength + valueLength;
-                        }
-                        break;
-
-                    case CS4L1:
-                        length = TypeMarkerLength + OneByteLength + GetCompressedStringLength(buffer.getUnsignedByte(1), 4);
-                        break;
-                    case CS7L1:
-                        length = TypeMarkerLength + OneByteLength + GetCompressedStringLength(buffer.getUnsignedByte(1), 7);
-                        break;
-                    case CS7L2:
-                        length = TypeMarkerLength + TwoByteLength + GetCompressedStringLength(buffer.getUnsignedShort(1), 7);
-                        break;
-
-                    case CS4BL1:
-                        length = TypeMarkerLength + OneByteLength + OneByteBaseChar + GetCompressedStringLength(buffer.getUnsignedByte(1), 4);
-                        break;
-                    case CS5BL1:
-                        length = TypeMarkerLength + OneByteLength + OneByteBaseChar + GetCompressedStringLength(buffer.getUnsignedByte(1), 5);
-                        break;
-                    case CS6BL1:
-                        length = TypeMarkerLength + OneByteLength + OneByteBaseChar + GetCompressedStringLength(buffer.getUnsignedByte(1), 6);
-                        break;
-
-                    default:
-                        throw new IllegalArgumentException("Invalid variable length type marker length: " + length);
-                }
-            }
-
-            return length;
-        }
-
-
-        public static int GetCompressedStringLength(int length, int numberOfBits) {
-            return ((length * numberOfBits) + 7) / 8;
-        }
     }
 }

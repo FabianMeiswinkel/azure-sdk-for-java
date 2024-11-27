@@ -27,15 +27,13 @@ class ResponseUtils {
                 return new StoreResponse(
                     httpClientResponse.statusCode(),
                     HttpUtils.unescape(httpResponseHeaders.toMap()),
-                    null,
-                    0);
+                    null);
             }
 
             return new StoreResponse(
                 httpClientResponse.statusCode(),
                 HttpUtils.unescape(httpResponseHeaders.toMap()),
-                new ByteBufInputStream(byteBufContent, true),
-                size);
+                byteBufContent);
         });
     }
 }

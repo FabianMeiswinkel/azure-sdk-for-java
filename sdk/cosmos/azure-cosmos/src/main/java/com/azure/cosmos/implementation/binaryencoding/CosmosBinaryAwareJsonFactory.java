@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 
@@ -32,9 +33,10 @@ public class CosmosBinaryAwareJsonFactory extends MappingJsonFactory {
                 data.length > offset + 1,
                 "Argument 'offset' is invalid for binary encoded payload.");
             return new CosmosBinaryParser(
-                data,
-                offset + 1,
-                len - 1,
+                // NOTE: It is ok here to use the unooled wrapped buffer, because this byte[]
+                // is backed by the netty buffer pool - and will be released accordingly after
+                // parsing is done.
+                Unpooled.wrappedBuffer(data, offset + 1, len - 1),
                 ctxt,
                 this._parserFeatures,
                 _byteSymbolCanonicalizer.makeChild(this._factoryFeatures));

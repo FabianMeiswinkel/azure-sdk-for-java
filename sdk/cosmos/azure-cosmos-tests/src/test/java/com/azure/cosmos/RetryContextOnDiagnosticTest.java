@@ -98,7 +98,7 @@ public class RetryContextOnDiagnosticTest extends TestSuiteBase {
         ByteBuf buffer = getUTF8BytesOrNull(rawJson);
         Mockito.when(callbackMethod.call()).thenThrow(exception, exception, exception, exception, exception)
 
-            .thenReturn(Mono.just(new StoreResponse(200, new HashMap<>(), new ByteBufInputStream(buffer, true), buffer.readableBytes())));
+            .thenReturn(Mono.just(new StoreResponse(200, new HashMap<>(), buffer)));
         Mono<StoreResponse> monoResponse = BackoffRetryUtility.executeRetry(callbackMethod, retryPolicy);
         StoreResponse response = validateSuccess(monoResponse);
 
@@ -143,7 +143,7 @@ public class RetryContextOnDiagnosticTest extends TestSuiteBase {
         String rawJson = "{\"id\":\"" + responseText + "\"}";
         ByteBuf buffer = getUTF8BytesOrNull(rawJson);
         Mockito.when(parameterizedCallbackMethod.apply(ArgumentMatchers.any())).thenReturn(exceptionMono, exceptionMono, exceptionMono, exceptionMono, exceptionMono)
-            .thenReturn(Mono.just(new StoreResponse(200, new HashMap<>(), new ByteBufInputStream(buffer, true), buffer.readableBytes())));
+            .thenReturn(Mono.just(new StoreResponse(200, new HashMap<>(), buffer)));
         Mono<StoreResponse> monoResponse = BackoffRetryUtility.executeAsync(
             parameterizedCallbackMethod,
             retryPolicy,

@@ -387,12 +387,27 @@ public class TypeMarker {
     public final static byte Object4ByteLengthAndCount = (byte) 0xEF;
     //endregion
 
-    //region [0xF0, 0xF8): Empty Range
-    // ---------------------------------------------------------------------
-    // <empty> 0xF0
-    // <empty> 0xF1
-    // <empty> 0xF2
-    // <empty> 0xF3
+    //region [0xF0, 0xF8): Special Arrays Type Markers
+    /// <summary>
+    /// Uniform number array of 1-byte item count.
+    /// </summary>
+    public final static byte ArrNumC1 = (byte) 0xF0;
+
+    /// <summary>
+    /// Uniform number array of 2-byte item count.
+    /// </summary>
+    public final static byte ArrNumC2 = (byte)0xF1;
+
+    /// <summary>
+    /// Array of 1-byte item count of uniform number arrays of 1-byte item count.
+    /// </summary>
+    public final static byte ArrArrNumC1C1 = (byte)0xF2;
+
+    /// <summary>
+    /// Array of 2-byte item count of uniform number arrays of 2-byte item count.
+    /// </summary>
+    public final static byte ArrArrNumC2C2 = (byte)0xF3;
+
     // <empty> 0xF4
     // <empty> 0xF5
     // <empty> 0xF6

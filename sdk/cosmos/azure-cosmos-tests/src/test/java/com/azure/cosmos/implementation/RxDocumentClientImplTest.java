@@ -434,8 +434,7 @@ public class RxDocumentClientImplTest {
         StoreResponse storeResponse = new StoreResponse(
             HttpResponseStatus.OK.code(),
             headers,
-            new ByteBufInputStream(Unpooled.wrappedBuffer(blob), true),
-            blob.length);
+            Unpooled.wrappedBuffer(blob));
 
         RxDocumentServiceResponse documentServiceResponse = new RxDocumentServiceResponse(new DiagnosticsClientContext() {
 

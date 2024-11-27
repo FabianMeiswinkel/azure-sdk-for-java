@@ -7,7 +7,9 @@ import com.azure.cosmos.implementation.Configs;
 import com.azure.cosmos.implementation.Utils;
 import com.azure.cosmos.implementation.binaryencoding.JsonSerializationFormat;
 import com.fasterxml.jackson.databind.JsonNode;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.internal.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,34 +26,54 @@ public class JsonNodeStorePayload implements StorePayload<JsonNode> {
     private final int responsePayloadSize;
     private final JsonNode jsonValue;
 
-    public JsonNodeStorePayload(ByteBufInputStream bufferStream, int readableBytes) {
-        if (readableBytes > 0) {
+    public JsonNodeStorePayload(ByteBuf contentBuffer) {
+        int readableBytes = contentBuffer.readableBytes();
+        if (contentBuffer != null && readableBytes > 0) {
             this.responsePayloadSize = readableBytes;
-            this.jsonValue = fromJson(bufferStream, readableBytes);
+            this.jsonValue = fromJson(contentBuffer);
         } else {
+            if (contentBuffer != null) {
+                contentBuffer.release();
+            }
             this.responsePayloadSize = 0;
             this.jsonValue = null;
         }
     }
 
-    private static JsonNode fromJson(ByteBufInputStream bufferStream, int readableBytes) {
-        byte[] bytes = new byte[readableBytes];
+    private static JsonNode fromJson(ByteBuf contentBuffer) {
+        byte[] bytes;
+        int offset;
+        int length;
+
+        // if the ByteBuf is backed by a byte[] avoid the memory copy
+        if (contentBuffer.hasArray()) {
+            bytes = contentBuffer.array();
+            offset = contentBuffer.arrayOffset();
+            length = contentBuffer.readableBytes();
+        } else {
+            bytes = ByteBufUtil.getBytes(contentBuffer);
+            offset = 0;
+            length = bytes.length;
+        }
+
         try {
-            bufferStream.read(bytes);
-            return Utils.getSimpleObjectMapper().readTree(bytes);
+            return Utils.getSimpleObjectMapper().readTree(bytes, offset, length);
         } catch (IOException e) {
             if (fallbackCharsetDecoder != null) {
                 logger.warn("Unable to parse JSON, fallback to use customized charset decoder.", e);
-                return fromJsonWithFallbackCharsetDecoder(bytes);
+                return fromJsonWithFallbackCharsetDecoder(bytes, offset, length);
             } else {
                 throw new IllegalStateException("Unable to parse JSON.", e);
             }
         }
+        finally {
+            contentBuffer.release();
+        }
     }
 
-    private static JsonNode fromJsonWithFallbackCharsetDecoder(byte[] bytes) {
+    private static JsonNode fromJsonWithFallbackCharsetDecoder(byte[] bytes, int offset, int length) {
         try {
-            String sanitizedJson = fallbackCharsetDecoder.decode(ByteBuffer.wrap(bytes)).toString();
+            String sanitizedJson = fallbackCharsetDecoder.decode(ByteBuffer.wrap(bytes, offset, length)).toString();
             return Utils.getSimpleObjectMapper().readTree(sanitizedJson);
         } catch (IOException e) {
             throw new IllegalStateException(

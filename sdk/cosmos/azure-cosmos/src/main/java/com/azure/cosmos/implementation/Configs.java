@@ -282,6 +282,10 @@ public class Configs {
     private static final String EMULATOR_HOST = "COSMOS.EMULATOR_HOST";
     private static final String EMULATOR_HOST_VARIABLE = "COSMOS_EMULATOR_HOST";
 
+    public static final int DEFAULT_JSON_BINARY_MAX_NESTING_DEPTH = 256;
+    public static final String JSON_BINARY_MAX_NESTING_DEPTH = "COSMOS.JSON_BINARY_MAX_NESTING_DEPTH";
+    public static final String JSON_BINARY_MAX_NESTING_DEPTH_VARIABLE = "COSMOS_JSON_BINARY_MAX_NESTING_DEPTH";
+
     public Configs() {
         this.sslContext = sslContextInit(false);
         this.sslContextWithCertValidationDisabled = sslContextInit(true);
@@ -898,5 +902,19 @@ public class Configs {
             firstNonNull(
                 emptyToNull(System.getenv().get(EMULATOR_HOST_VARIABLE)),
                 DEFAULT_EMULATOR_HOST));
+    }
+
+    public static int getMaxJsonBinaryNestingDepth() {
+        String valueFromSystemProperty = System.getProperty(JSON_BINARY_MAX_NESTING_DEPTH);
+        if (valueFromSystemProperty != null && !valueFromSystemProperty.isEmpty()) {
+            return Integer.parseInt(valueFromSystemProperty);
+        }
+
+        String valueFromEnvVariable = System.getenv(JSON_BINARY_MAX_NESTING_DEPTH_VARIABLE);
+        if (valueFromEnvVariable != null && !valueFromEnvVariable.isEmpty()) {
+            return Integer.parseInt(valueFromEnvVariable);
+        }
+
+        return DEFAULT_JSON_BINARY_MAX_NESTING_DEPTH;
     }
 }
