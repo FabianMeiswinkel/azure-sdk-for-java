@@ -286,11 +286,6 @@ public class Configs {
     public static final String JSON_BINARY_MAX_NESTING_DEPTH = "COSMOS.JSON_BINARY_MAX_NESTING_DEPTH";
     public static final String JSON_BINARY_MAX_NESTING_DEPTH_VARIABLE = "COSMOS_JSON_BINARY_MAX_NESTING_DEPTH";
 
-    public Configs() {
-        this.sslContext = sslContextInit(false);
-        this.sslContextWithCertValidationDisabled = sslContextInit(true);
-    }
-
     // Flag to indicate whether enabled http2 for gateway
     private static final boolean DEFAULT_HTTP2_ENABLED = false;
     private static final String HTTP2_ENABLED = "COSMOS.HTTP2_ENABLED";
