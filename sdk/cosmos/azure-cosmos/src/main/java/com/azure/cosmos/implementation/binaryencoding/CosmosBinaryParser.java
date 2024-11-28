@@ -347,7 +347,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
             }
         }
 
-        fix me
+        // fix me
         return null;
     }
 
