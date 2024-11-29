@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 public class CosmosMicrometerMetricsConfig {
     public static final CosmosMicrometerMetricsConfig DEFAULT = new CosmosMicrometerMetricsConfig();
+    public static final String DEFAULT_JSON = DEFAULT.toJson(new ObjectMapper());
 
     @JsonSetter(nulls = Nulls.SKIP)
     @JsonProperty
@@ -43,8 +45,12 @@ public class CosmosMicrometerMetricsConfig {
     public CosmosMicrometerMetricsConfig() {}
 
     public String toJson() {
+        return toJson(Utils.getSimpleObjectMapper());
+    }
+
+    private String toJson(ObjectMapper objectMapper) {
         try {
-            return Utils.getSimpleObjectMapper().writeValueAsString(this);
+            return objectMapper.writeValueAsString(this);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Unable to convert to Json String", e);
         }

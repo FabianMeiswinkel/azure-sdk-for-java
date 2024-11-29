@@ -5,6 +5,7 @@ package com.azure.cosmos.implementation;
 import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import com.azure.cosmos.implementation.circuitBreaker.PartitionLevelCircuitBreakerConfig;
 import com.azure.cosmos.implementation.directconnectivity.Protocol;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.handler.ssl.ApplicationProtocolConfig;
 import io.netty.handler.ssl.ApplicationProtocolNames;
 import io.netty.handler.ssl.SslContext;
@@ -227,11 +228,12 @@ public class Configs {
     //                + "\"enableHistograms\":false,"
     //                + "\"applyDiagnosticThresholdsForTransportLevelMeters\":true}");
     public static final String METRICS_CONFIG = "COSMOS.METRICS_CONFIG";
-    public static final String DEFAULT_METRICS_CONFIG = CosmosMicrometerMetricsConfig.DEFAULT.toJson();
+
+    public static final String DEFAULT_METRICS_CONFIG = CosmosMicrometerMetricsConfig.DEFAULT_JSON;
 
     // For partition-level circuit breaker, below config will set the tolerated consecutive exception counts
     // for reads and writes for a given partition before being marked as Unavailable
-    private static final String DEFAULT_PARTITION_LEVEL_CIRCUIT_BREAKER_CONFIG = PartitionLevelCircuitBreakerConfig.DEFAULT.toJson();
+    private static final String DEFAULT_PARTITION_LEVEL_CIRCUIT_BREAKER_CONFIG = PartitionLevelCircuitBreakerConfig.DEFAULT_JSON;
     private static final String PARTITION_LEVEL_CIRCUIT_BREAKER_CONFIG = "COSMOS.PARTITION_LEVEL_CIRCUIT_BREAKER_CONFIG";
     private static final String STALE_COLLECTION_CACHE_REFRESH_RETRY_COUNT = "COSMOS.STALE_COLLECTION_CACHE_REFRESH_RETRY_COUNT";
     private static final int DEFAULT_STALE_COLLECTION_CACHE_REFRESH_RETRY_COUNT = 2;
@@ -285,6 +287,10 @@ public class Configs {
     public static final int DEFAULT_JSON_BINARY_MAX_NESTING_DEPTH = 256;
     public static final String JSON_BINARY_MAX_NESTING_DEPTH = "COSMOS.JSON_BINARY_MAX_NESTING_DEPTH";
     public static final String JSON_BINARY_MAX_NESTING_DEPTH_VARIABLE = "COSMOS_JSON_BINARY_MAX_NESTING_DEPTH";
+
+    public static final boolean DEFAULT_JSON_BINARY_DISABLED = true;
+    public static final String JSON_BINARY_DISABLED = "COSMOS.JSON_BINARY_DISABLED";
+    public static final String JSON_BINARY_DISABLED_VARIABLE = "COSMOS_JSON_BINARY_DISABLED";
 
     // Flag to indicate whether enabled http2 for gateway
     private static final boolean DEFAULT_HTTP2_ENABLED = false;
@@ -984,5 +990,19 @@ public class Configs {
         }
 
         return DEFAULT_JSON_BINARY_MAX_NESTING_DEPTH;
+    }
+
+    public static boolean isJsonBinaryDisabled() {
+        String valueFromSystemProperty = System.getProperty(JSON_BINARY_DISABLED);
+        if (valueFromSystemProperty != null && !valueFromSystemProperty.isEmpty()) {
+            return Boolean.parseBoolean(valueFromSystemProperty);
+        }
+
+        String valueFromEnvVariable = System.getenv(JSON_BINARY_DISABLED_VARIABLE);
+        if (valueFromEnvVariable != null && !valueFromEnvVariable.isEmpty()) {
+            return Boolean.parseBoolean(valueFromEnvVariable);
+        }
+
+        return DEFAULT_JSON_BINARY_DISABLED;
     }
 }

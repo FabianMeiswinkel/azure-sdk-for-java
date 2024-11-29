@@ -80,15 +80,17 @@ public class Utils {
     public static final Base64.Encoder Base64UrlEncoder = Base64.getUrlEncoder();
 
     private static final ObjectMapper simpleObjectMapperAllowingDuplicatedProperties =
-        createAndInitializeObjectMapper(true);
+        createAndInitializeObjectMapper(true, Configs.isJsonBinaryDisabled());
     private static final ObjectMapper simpleObjectMapperDisallowingDuplicatedProperties =
-        createAndInitializeObjectMapper(false);
+        createAndInitializeObjectMapper(false, Configs.isJsonBinaryDisabled());
 
     private static final ObjectMapper durationEnabledObjectMapper = createAndInitializeDurationObjectMapper();
     private static ObjectMapper simpleObjectMapper = simpleObjectMapperDisallowingDuplicatedProperties;
     private static final TimeBasedGenerator TIME_BASED_GENERATOR =
             Generators.timeBasedGenerator(EthernetAddress.constructMulticastAddress());
     private static final Pattern SPACE_PATTERN = Pattern.compile("\\s");
+
+    private static volatile boolean isSimpleObjectMapperInitialized = false;
 
     private static AtomicReference<ImplementationBridgeHelpers.CosmosItemSerializerHelper.CosmosItemSerializerAccessor> itemSerializerAccessor =
         new AtomicReference<>(null);
@@ -115,7 +117,10 @@ public class Utils {
         return itemSerializerAccessor.get();
     }
 
-    private static ObjectMapper createAndInitializeObjectMapper(boolean allowDuplicateProperties) {
+    public static ObjectMapper createAndInitializeObjectMapper(
+        boolean allowDuplicateProperties,
+        boolean disableBinary
+    ) {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         objectMapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
@@ -132,6 +137,10 @@ public class Utils {
         tryToLoadJacksonPerformanceLibrary(objectMapper);
 
         objectMapper.registerModule(new JavaTimeModule());
+
+        if (disableBinary) {
+            return objectMapper;
+        }
 
         return new CosmosBinaryAwareObjectMapper(objectMapper);
     }
@@ -443,6 +452,9 @@ public class Utils {
     }
 
     public static ObjectMapper getSimpleObjectMapper() {
+        if (Utils.simpleObjectMapper == null) {
+            Utils.simpleObjectMapper = simpleObjectMapperDisallowingDuplicatedProperties;
+        }
         return Utils.simpleObjectMapper;
     }
 

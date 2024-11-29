@@ -347,8 +347,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
             }
         }
 
-        // fix me
-        return null;
+        return this.jsonObjectState.getCurrentJsonToken();
     }
 
     @Override

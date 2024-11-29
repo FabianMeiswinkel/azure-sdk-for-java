@@ -9,10 +9,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class PartitionLevelCircuitBreakerConfig {
 
     public static final PartitionLevelCircuitBreakerConfig DEFAULT = new PartitionLevelCircuitBreakerConfig();
+    public static final String DEFAULT_JSON = DEFAULT.toJson(new ObjectMapper());
 
     @JsonSetter(nulls = Nulls.SKIP)
     @JsonProperty
@@ -50,8 +52,12 @@ public class PartitionLevelCircuitBreakerConfig {
     }
 
     public String toJson() {
+        return toJson(Utils.getSimpleObjectMapper());
+    }
+
+    private String toJson(ObjectMapper objectMapper) {
         try {
-            return Utils.getSimpleObjectMapper().writeValueAsString(this);
+            return objectMapper.writeValueAsString(this);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Unable to convert to Json String", e);
         }

@@ -3,6 +3,7 @@
 package com.azure.cosmos.implementation.binaryencoding;
 
 import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonToken;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 
@@ -314,5 +315,58 @@ public final class JsonObjectState
         }
 
         this.currentTokenType = JsonTokenType.FieldName;
+    }
+
+    public JsonToken getCurrentJsonToken() {
+        JsonTokenType currentTokenTypeSnapshot = this.currentTokenType;
+        switch (currentTokenTypeSnapshot) {
+            case NotStarted:
+                return JsonToken.NOT_AVAILABLE;
+
+            case BeginArray:
+                return JsonToken.START_ARRAY;
+
+            case EndArray:
+                return JsonToken.END_ARRAY;
+
+            case BeginObject:
+                return JsonToken.START_OBJECT;
+
+            case EndObject:
+                return JsonToken.END_OBJECT;
+            case True:
+                return JsonToken.VALUE_TRUE;
+
+            case False:
+                return JsonToken.VALUE_FALSE;
+
+            case Null:
+                return JsonToken.VALUE_NULL;
+
+            case FieldName:
+                return JsonToken.FIELD_NAME;
+
+            case Int8:
+            case Int16:
+            case Int32:
+            case Int64:
+            case UInt8:
+            case UInt32:
+                return JsonToken.VALUE_NUMBER_INT;
+
+            case Float32:
+            case Float64:
+            case Number:
+                return JsonToken.VALUE_NUMBER_FLOAT;
+
+            case String:
+            case Guid:
+            case Binary:
+                return JsonToken.VALUE_STRING;
+
+            default:
+                throw new IllegalStateException(
+                    "Unknown json token type '" + currentTokenTypeSnapshot + "'.");
+        }
     }
 }
