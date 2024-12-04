@@ -42,9 +42,9 @@ public class JsonBinaryDotNetReferenceTests {
 
         assertThat(binaryBlob.getByte(0)).isEqualTo(JsonSerializationFormat.Binary);
         JsonNode actual = binaryEnabledObjectMapper.readTree(
-            jsonBlob.array(),
-            jsonBlob.readerIndex(),
-            jsonBlob.readableBytes());
+            binaryBlob.array(),
+            binaryBlob.readerIndex(),
+            binaryBlob.readableBytes());
 
         compareJsonNodes(expected, actual);
     }

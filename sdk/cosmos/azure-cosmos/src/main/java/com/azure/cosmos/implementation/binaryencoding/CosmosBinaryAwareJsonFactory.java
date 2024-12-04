@@ -4,6 +4,7 @@ package com.azure.cosmos.implementation.binaryencoding;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.core.io.IOContext;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,8 +18,12 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNo
 public class CosmosBinaryAwareJsonFactory extends MappingJsonFactory {
     private static final long serialVersionUID = 1L;
 
+    private final ObjectCodec codec;
+
     public CosmosBinaryAwareJsonFactory(ObjectMapper mapper) {
         super();
+
+        this.codec = mapper;
     }
 
     //
@@ -39,7 +44,8 @@ public class CosmosBinaryAwareJsonFactory extends MappingJsonFactory {
                 Unpooled.wrappedBuffer(data, offset + 1, len - 1),
                 ctxt,
                 this._parserFeatures,
-                _byteSymbolCanonicalizer.makeChild(this._factoryFeatures));
+                _byteSymbolCanonicalizer.makeChild(this._factoryFeatures),
+                this.codec);
         }
 
         return super._createParser(data, offset, len, ctxt);

@@ -4,6 +4,7 @@ package com.azure.cosmos.implementation.binaryencoding;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.JsonTokenId;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 

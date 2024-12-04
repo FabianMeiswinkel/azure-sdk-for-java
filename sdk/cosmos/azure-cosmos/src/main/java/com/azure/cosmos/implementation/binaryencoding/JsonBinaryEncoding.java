@@ -104,7 +104,7 @@ public class JsonBinaryEncoding {
     private static final int MinCompressedStringLength7 = 88;
     private static final int MinCompressedStringLength = Min4BitCharSetStringLength;
 
-    private static final boolean[] IsBufferedStringCandidate = new boolean[] {
+    public static final boolean[] isBufferedStringCandidate = new boolean[] {
         // Encoded literal integer value (32 values)
         false, false, false, false, false, false, false, false,
         false, false, false, false, false, false, false, false,
@@ -1077,6 +1077,209 @@ public class JsonBinaryEncoding {
         return TryResult.success(requiredSize);
     }
 
+    private static TryResult<String> tryGetBufferedLengthPrefixedString(
+        ByteBuf rootBuffer,
+        ByteBuf stringToken)
+    {
+        byte typeMarker = stringToken.readByte();
+
+        int length;
+        if (TypeMarker.IsEncodedLengthString(typeMarker))
+        {
+            length = JsonBinaryEncoding.getStringLength(typeMarker);
+        }
+        else
+        {
+            int referenceStringOffset;
+            switch (typeMarker)
+            {
+                case TypeMarker.String1ByteLength:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.OneByteLength)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = stringToken.readUnsignedByte();
+                    break;
+
+                case TypeMarker.String2ByteLength:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.TwoByteLength)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = stringToken.readUnsignedShortLE();
+                    break;
+
+                case TypeMarker.String4ByteLength:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.FourByteLength)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = (int)stringToken.readUnsignedIntLE();
+                    if (length < 0)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    break;
+
+                case TypeMarker.ReferenceString1ByteOffset:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.OneByteOffset)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = stringToken.readUnsignedByte();
+                    if (rootBuffer.readableBytes() < length) {
+                        return TryResult.failed(String.class);
+                    }
+                    referenceStringOffset = length + rootBuffer.readerIndex();
+
+                    return tryGetBufferedStringValue(
+                        rootBuffer,
+                        rootBuffer.slice(referenceStringOffset, rootBuffer.readableBytes() - referenceStringOffset));
+
+                case TypeMarker.ReferenceString2ByteOffset:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.TwoByteOffset)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = stringToken.readUnsignedShortLE();
+                    if (rootBuffer.readableBytes() < length) {
+                        return TryResult.failed(String.class);
+                    }
+                    referenceStringOffset = length + rootBuffer.readerIndex();
+
+                    return tryGetBufferedStringValue(
+                        rootBuffer,
+                        rootBuffer.slice(referenceStringOffset, rootBuffer.readableBytes() - referenceStringOffset));
+
+                case TypeMarker.ReferenceString3ByteOffset:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.ThreeByteOffset)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = stringToken.readUnsignedMediumLE();
+                    if (rootBuffer.readableBytes() < length) {
+                        return TryResult.failed(String.class);
+                    }
+                    referenceStringOffset = length + rootBuffer.readerIndex();
+
+                    return tryGetBufferedStringValue(
+                        rootBuffer,
+                        rootBuffer.slice(referenceStringOffset, rootBuffer.readableBytes() - referenceStringOffset));
+
+                case TypeMarker.ReferenceString4ByteOffset:
+                    if (stringToken.readableBytes() < JsonBinaryEncoding.FourByteOffset)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    length = (int) stringToken.readUnsignedIntLE();
+                    if (length < 0)
+                    {
+                        return TryResult.failed(String.class);
+                    }
+
+                    if (rootBuffer.readableBytes() < length) {
+                        return TryResult.failed(String.class);
+                    }
+
+                    referenceStringOffset = length + rootBuffer.readerIndex();
+
+                    return tryGetBufferedStringValue(
+                        rootBuffer,
+                        rootBuffer.slice(referenceStringOffset, rootBuffer.readableBytes() - referenceStringOffset));
+
+                default:
+                    return TryResult.failed(String.class);
+            }
+
+            if (stringToken.readableBytes() < length)
+            {
+                return TryResult.failed(String.class);
+            }
+        }
+
+        TryResult<Utf8ByteBuffer> utf8Buffer =  Utf8ByteBuffer.tryCreate(stringToken.readSlice(length));
+        if (!utf8Buffer.isSuccess()) {
+            return TryResult.failed(String.class);
+        }
+
+        return TryResult.success(utf8Buffer.toString());
+    }
+
+    public static TryResult<String> tryGetBufferedStringValue(
+        ByteBuf rootBuffer,
+        ByteBuf stringToken)
+    {
+        if (stringToken.readableBytes() == 0)
+        {
+            return TryResult.failed(String.class);
+        }
+
+        TryResult<String> prefixedAttempt = tryGetBufferedLengthPrefixedString(
+            rootBuffer,
+            stringToken.duplicate());
+
+        if (prefixedAttempt.isSuccess())
+        {
+            return prefixedAttempt;
+        }
+
+        return tryGetEncodedStringValue(stringToken);
+   }
+
+    /// <summary>
+    /// Try Get Encoded String Value
+    /// </summary>
+    /// <param name="stringToken">The string token to read from.</param>
+    /// <param name="value">The encoded string if found.</param>
+    /// <returns>Encoded String Value</returns>
+    private static TryResult<String> tryGetEncodedStringValue(ByteBuf stringToken)
+    {
+        return tryGetEncodedSystemStringValue(stringToken);
+
+        // UserDictionaryEncoding irrelevant in Java SDK (already decoded in svc
+        // if (JsonBinaryEncoding.TryGetEncodedUserStringValue(stringToken, out value))
+        // {
+        //   return true;
+        // }
+    }
+
+    /// <summary>
+    /// Try Get Encoded System String Value
+    /// </summary>
+    /// <param name="stringToken">The buffer to read from..</param>
+    /// <param name="value">The encoded system string.</param>
+    /// <returns>Encoded System String Value</returns>
+    private static TryResult<String> tryGetEncodedSystemStringValue(
+        ByteBuf stringToken)
+    {
+        if (stringToken.readableBytes() < 1)
+        {
+            return TryResult.failed(String.class);
+        }
+
+        byte typeMarker = stringToken.readByte();
+        if (!TypeMarker.IsSystemString(typeMarker))
+        {
+            return TryResult.failed(String.class);
+        }
+
+        int systemStringId = typeMarker - TypeMarker.SystemString1ByteLengthMin;
+        TryResult<UtfAllString> result = SystemStrings.tryGetSystemStringById(systemStringId);
+        if (!result.isSuccess()) {
+            return TryResult.failed(String.class);
+        }
+
+        return TryResult.success(result.getResult().getUtf16String());
+    }
+
     private static class StringCompressionLookupTables
     {
         public static final StringCompressionLookupTables DateTime = Create(
@@ -1539,6 +1742,20 @@ public class JsonBinaryEncoding {
         };
     }
 
+    /// <summary>
+    /// Gets the length of a particular string given its TypeMarker.
+    /// </summary>
+    /// <param name="typeMarker">The type marker as input</param>
+    /// <returns>
+    /// - Non-Negative Value: The TypeMarker encodes the string length
+    /// - Negative Value: System or user dictionary encoded string, or encoded string length that follows The TypeMarker
+    /// </returns>
+    public static int getStringLength(byte typeMarker)
+    {
+        short unsignedTypeMarker = (short)(typeMarker & 0xFF);
+        return JsonBinaryEncoding.StringLengths.Lengths[unsignedTypeMarker];
+    }
+
     public static int getValueLength(ByteBuf buffer)
     {
         checkNotNull(buffer, "Parameter 'buffer' MUST NOT be null.");
@@ -1554,21 +1771,21 @@ public class JsonBinaryEncoding {
                     length = TypeMarkerLength + OneByteLength + buffer.readUnsignedByte();
                     break;
                 case ValueLengths.L2:
-                    length = TypeMarkerLength + TwoByteLength + buffer.readUnsignedShort();
+                    length = TypeMarkerLength + TwoByteLength + buffer.readUnsignedShortLE();
                     break;
                 case ValueLengths.L4:
-                    length = TypeMarkerLength + FourByteLength + buffer.readUnsignedInt();
+                    length = TypeMarkerLength + FourByteLength + buffer.readUnsignedIntLE();
                     break;
 
                 case ValueLengths.LC1:
                     length = TypeMarkerLength + OneByteLength + OneByteCount + buffer.readUnsignedByte();
                     break;
                 case ValueLengths.LC2:
-                    length = TypeMarkerLength + TwoByteLength + TwoByteCount + buffer.readUnsignedShort();
+                    length = TypeMarkerLength + TwoByteLength + TwoByteCount + buffer.readUnsignedShortLE();
                     break;
                 case ValueLengths.LC4:
                     buffer.skipBytes(1);
-                    length = TypeMarkerLength + FourByteLength + FourByteCount + buffer.readUnsignedInt();
+                    length = TypeMarkerLength + FourByteLength + FourByteCount + buffer.readUnsignedIntLE();
                     break;
 
                 case ValueLengths.Arr1:
@@ -1577,14 +1794,14 @@ public class JsonBinaryEncoding {
                     break;
 
                 case ValueLengths.Obj1:
-                    long nameLength = getValueLength(buffer);
+                    long nameLength = getValueLength(buffer.slice());
                     if (nameLength == 0)
                     {
                         length = 0;
                     }
                     else
                     {
-                        long valueLength = getValueLength(buffer);
+                        long valueLength = getValueLength(buffer.skipBytes((int)nameLength));
                         length = TypeMarkerLength + nameLength + valueLength;
                     }
                     break;
@@ -1596,7 +1813,7 @@ public class JsonBinaryEncoding {
                     length = TypeMarkerLength + OneByteLength + getCompressedStringLength(buffer.readUnsignedByte(), 7);
                     break;
                 case ValueLengths.CS7L2:
-                    length = TypeMarkerLength + TwoByteLength + getCompressedStringLength(buffer.readUnsignedShort(), 7);
+                    length = TypeMarkerLength + TwoByteLength + getCompressedStringLength(buffer.readUnsignedShortLE(), 7);
                     break;
 
                 case ValueLengths.CS4BL1:
