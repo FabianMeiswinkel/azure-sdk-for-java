@@ -397,28 +397,7 @@ public class JsonBinaryEncoding {
         for (; index < iterations; index += 8)
         {
             if (encodedString.readableBytes() - inputStart >= 8) {
-                ByteBuf dummy = Unpooled.wrappedBuffer(new byte[8]);
-                for (int i=0; i < numberOfBits; i++ ) {
-                    byte b = encodedString.getByte(inputStart + i);
-                    LOG.info("{}: {} ({})", i, b, Integer.toBinaryString(b & 0xFF));
-                    dummy.setByte(i, b);
-                }
-
-                dummy.setIndex(0, 7);
-                long packedValueLE = dummy.getLongLE(0);
-                long packedValueHE = dummy.getLong(0);
-
                 packedValue = encodedString.getLongLE(inputStart) & 0x00FFFFFFFFFFFFFFL;
-
-                LOG.info(
-                    "packedValue: {} ({}), LE {} ({}), HE {} ({}), LEM1 {} ({}), LEM2 {} ({}), HEM1 {} ({}), HEM2 {} ({})",
-                    packedValue, Long.toBinaryString(packedValue),
-                    packedValueLE, Long.toBinaryString(packedValueLE),
-                    packedValueHE, Long.toBinaryString(packedValueHE),
-                    encodedString.getLongLE(inputStart) & 0xFFFFFFF0, Long.toBinaryString(encodedString.getLongLE(inputStart) & 0xFFFFFFF0),
-                    encodedString.getLongLE(inputStart) & 0x0FFFFFFFF, Long.toBinaryString(encodedString.getLongLE(inputStart) & 0x0FFFFFFFF),
-                    encodedString.getLong(inputStart) & 0xFFFFFFF0, Long.toBinaryString(encodedString.getLong(inputStart) & 0xFFFFFFF0),
-                    encodedString.getLong(inputStart) & 0x0FFFFFFF, Long.toBinaryString(encodedString.getLong(inputStart) & 0x0FFFFFFF));
             } else {
                 byte[] temp = new byte[8];
                 for (int i = 0; i < encodedString.readableBytes() - inputStart; i++) {

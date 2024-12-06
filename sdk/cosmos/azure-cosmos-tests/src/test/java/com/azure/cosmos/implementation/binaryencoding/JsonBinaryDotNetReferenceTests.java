@@ -33,7 +33,7 @@ public class JsonBinaryDotNetReferenceTests {
         logger.info("Start test case: {}", name);
 
         ByteBuf jsonBlob = Unpooled.wrappedBuffer(json.getBytes(StandardCharsets.UTF_8));
-        ByteBuf binaryBlob = Unpooled.wrappedBuffer(Base64.getDecoder().decode(expectedBinaryBase64));
+        ByteBuf binaryBlob = Unpooled.wrappedBuffer(Base64.getMimeDecoder().decode(expectedBinaryBase64));
 
         JsonNode expected = binaryEnabledObjectMapper.readTree(
             jsonBlob.array(),
