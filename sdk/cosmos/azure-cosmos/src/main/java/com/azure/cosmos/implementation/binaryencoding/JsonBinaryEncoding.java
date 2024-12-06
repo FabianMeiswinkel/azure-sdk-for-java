@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.implementation.binaryencoding;
 
+import com.azure.cosmos.implementation.apachecommons.lang.NotImplementedException;
 import com.fasterxml.jackson.core.JsonParseException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -119,7 +120,7 @@ public class JsonBinaryEncoding {
 
     private static int getFixedSizedValueAsUInt16(ByteBuf buffer)
     {
-        return buffer.readChar();
+        return buffer.readUnsignedShortLE();
     }
 
     private static short getFixedSizedValueAsUByte(ByteBuf buffer)
@@ -129,7 +130,7 @@ public class JsonBinaryEncoding {
 
     private static int getEncodedStringValueLength(ByteBuf stringToken)
     {
-        byte typeMarker = stringToken.getByte(0);
+        byte typeMarker = stringToken.getByte(stringToken.readerIndex());
 
         switch (typeMarker)
         {
@@ -143,7 +144,7 @@ public class JsonBinaryEncoding {
                 return stringToken.getByte(1);
 
             case TypeMarker.Packed7BitStringLength2:
-                return getFixedSizedValueAsUInt16(stringToken.slice(1, 2));
+                return getFixedSizedValueAsUInt16(stringToken.slice(stringToken.readerIndex() + 1, 2));
 
             case TypeMarker.LowercaseGuidString:
             case TypeMarker.UppercaseGuidString:
@@ -249,28 +250,28 @@ public class JsonBinaryEncoding {
     }
 
     private static int getEncodedStringBufferLength(ByteBuf stringToken) {
-        byte typeMarker = stringToken.getByte(0);
+        byte typeMarker = stringToken.getByte(stringToken.readerIndex());
 
         switch (typeMarker) {
             case TypeMarker.CompressedLowercaseHexString:
             case TypeMarker.CompressedUppercaseHexString:
             case TypeMarker.CompressedDateTimeString:
-                return getCompressedStringLength(stringToken.getByte(1), 4);
-
             case TypeMarker.Packed4BitString:
-                return getCompressedStringLength(stringToken.getByte(1), 4);
+                return getCompressedStringLength(stringToken.getByte(stringToken.readerIndex() + 1), 4);
 
             case TypeMarker.Packed5BitString:
-                return getCompressedStringLength(stringToken.getByte(1), 5);
+                return getCompressedStringLength(stringToken.getByte(stringToken.readerIndex() + 1), 5);
 
             case TypeMarker.Packed6BitString:
-                return getCompressedStringLength(stringToken.getByte(1), 6);
+                return getCompressedStringLength(stringToken.getByte(stringToken.readerIndex() + 1), 6);
 
             case TypeMarker.Packed7BitStringLength1:
-                return getCompressedStringLength(stringToken.getByte(1), 7);
+                return getCompressedStringLength(stringToken.getByte(stringToken.readerIndex() + 1), 7);
 
             case TypeMarker.Packed7BitStringLength2:
-                return getCompressedStringLength(getFixedSizedValueAsUInt16(stringToken.slice(1, 2)), 7);
+                return getCompressedStringLength(
+                    getFixedSizedValueAsUInt16(stringToken.slice(stringToken.readerIndex() + 1, 2)),
+                    7);
 
             case TypeMarker.LowercaseGuidString:
             case TypeMarker.UppercaseGuidString:
@@ -284,44 +285,38 @@ public class JsonBinaryEncoding {
 
     private static byte getEncodedStringBaseChar(ByteBuf stringToken)
     {
-        byte typeMarker = stringToken.getByte(0);
+        byte typeMarker = stringToken.getByte(stringToken.readerIndex());
 
         switch (typeMarker)
         {
             case TypeMarker.CompressedLowercaseHexString:
             case TypeMarker.CompressedUppercaseHexString:
             case TypeMarker.CompressedDateTimeString:
+            case TypeMarker.Packed7BitStringLength1:
+            case TypeMarker.Packed7BitStringLength2:
+            case TypeMarker.LowercaseGuidString:
+            case TypeMarker.UppercaseGuidString:
+            case TypeMarker.DoubleQuotedLowercaseGuidString:
                 return 0;
 
             case TypeMarker.Packed4BitString:
             case TypeMarker.Packed5BitString:
             case TypeMarker.Packed6BitString:
-                return stringToken.getByte(2);
-
-            case TypeMarker.Packed7BitStringLength1:
-            case TypeMarker.Packed7BitStringLength2:
-                return 0;
-
-            case TypeMarker.LowercaseGuidString:
-            case TypeMarker.UppercaseGuidString:
-            case TypeMarker.DoubleQuotedLowercaseGuidString:
-                return 0;
+                return stringToken.getByte(stringToken.readerIndex() + 2);
 
             default:
                 throw getIllegalTypeMarkerException(typeMarker);
         }
     }
 
-    public static void decodeString(ByteBuf stringToken) throws JsonParseException {
+    public static String decodeString(ByteBuf stringToken) throws JsonParseException {
         checkNotNull(stringToken, "Parameter 'stringToken' MUST NOT be null.");
-        byte typeMarker = stringToken.readByte();
+        byte typeMarker = stringToken.getByte(stringToken.readerIndex());
 
         boolean isHexadecimalString = TypeMarker.IsHexadecimalString(typeMarker);
         boolean isDateTimeString = TypeMarker.IsDateTimeString(typeMarker);
         boolean isCompressedString = TypeMarker.IsCompressedString(typeMarker);
         boolean isGuidString = TypeMarker.IsGuidString(typeMarker);
-        boolean isEncodedString = TypeMarker.IsEncodedString(typeMarker);
-        boolean isEncodedLengthString = TypeMarker.IsEncodedLengthString(typeMarker);
 
         checkArgument(
             isHexadecimalString || isDateTimeString || isCompressedString || isGuidString,
@@ -353,20 +348,16 @@ public class JsonBinaryEncoding {
         }
 
 
-        if (bytesWritten > 0)
-        {
-            ByteBuf destinationBuffer = Unpooled.wrappedBuffer(new byte[bytesWritten]);
-            destinationBuffer.resetReaderIndex();
-            destinationBuffer.resetWriterIndex();
-            if (bytesWritten > destinationBuffer.writableBytes())
-            {
-                throw new IllegalArgumentException("buffer destination is too small");
-            }
-
-            ByteBuf encodedString = stringToken.slice(prefixByteCount, encodedLength);
-
-            decodeStringValue(typeMarker, encodedString, baseChar, destinationBuffer.slice(0, bytesWritten));
+        if (bytesWritten == 0) {
+            return "";
         }
+
+        ByteBuf destinationBuffer = Unpooled.wrappedBuffer(new byte[bytesWritten]).setIndex(0, 0);
+        ByteBuf encodedString = stringToken.slice(stringToken.readerIndex() + prefixByteCount, encodedLength);
+        decodeStringValue(typeMarker, encodedString, baseChar, destinationBuffer);
+        destinationBuffer.setIndex(0, bytesWritten);
+        Utf8ByteBuffer decodedStringValue = Utf8ByteBuffer.create(destinationBuffer.asReadOnly());
+        return decodedStringValue.toString();
     }
 
     public static long byteArrayToLong(byte[] byteArray) {
@@ -388,6 +379,9 @@ public class JsonBinaryEncoding {
         ByteBuf destinationBuffer)
     {
         checkNotNull(encodedString, "Parameter 'encodedString' MUST NOT be null.");
+        checkArgument(
+            encodedString.readerIndex() == 0,
+            "Parameter 'encodedString.readerIndex()' MUST be 0.");
         checkNotNull(destinationBuffer, "Parameter 'destinationBuffer' MUST NOT be null.");
 
         checkArgument(
@@ -398,39 +392,64 @@ public class JsonBinaryEncoding {
         int index = 0;
         long packedValue = 0;
         int iterations = destinationBuffer.writableBytes() / 8 * 8;
-        int start = 0;
+        int inputStart = 0;
+        int outputStart = 0;
         for (; index < iterations; index += 8)
         {
-            if (encodedString.readableBytes() >= 8) {
-                packedValue = encodedString.getLong(start);
+            if (encodedString.readableBytes() - inputStart >= 8) {
+                ByteBuf dummy = Unpooled.wrappedBuffer(new byte[8]);
+                for (int i=0; i < numberOfBits; i++ ) {
+                    byte b = encodedString.getByte(inputStart + i);
+                    LOG.info("{}: {} ({})", i, b, Integer.toBinaryString(b & 0xFF));
+                    dummy.setByte(i, b);
+                }
+
+                dummy.setIndex(0, 7);
+                long packedValueLE = dummy.getLongLE(0);
+                long packedValueHE = dummy.getLong(0);
+
+                packedValue = encodedString.getLongLE(inputStart) & 0x00FFFFFFFFFFFFFFL;
+
+                LOG.info(
+                    "packedValue: {} ({}), LE {} ({}), HE {} ({}), LEM1 {} ({}), LEM2 {} ({}), HEM1 {} ({}), HEM2 {} ({})",
+                    packedValue, Long.toBinaryString(packedValue),
+                    packedValueLE, Long.toBinaryString(packedValueLE),
+                    packedValueHE, Long.toBinaryString(packedValueHE),
+                    encodedString.getLongLE(inputStart) & 0xFFFFFFF0, Long.toBinaryString(encodedString.getLongLE(inputStart) & 0xFFFFFFF0),
+                    encodedString.getLongLE(inputStart) & 0x0FFFFFFFF, Long.toBinaryString(encodedString.getLongLE(inputStart) & 0x0FFFFFFFF),
+                    encodedString.getLong(inputStart) & 0xFFFFFFF0, Long.toBinaryString(encodedString.getLong(inputStart) & 0xFFFFFFF0),
+                    encodedString.getLong(inputStart) & 0x0FFFFFFF, Long.toBinaryString(encodedString.getLong(inputStart) & 0x0FFFFFFF));
             } else {
                 byte[] temp = new byte[8];
-                encodedString.getBytes(start + 0, temp);
+                for (int i = 0; i < encodedString.readableBytes() - inputStart; i++) {
+                    temp[7-i] = encodedString.getByte(inputStart + i);
+                }
+
                 packedValue = byteArrayToLong(temp);
             }
 
-            destinationBuffer.setByte(start + 0, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 0, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 1, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 1, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 2, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 2, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 3, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 3, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 4, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 4, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 5, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 5, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 6, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 6, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
-            destinationBuffer.setByte(start + 7, (byte)(((byte)(packedValue & mask)) + baseChar));
+            destinationBuffer.setByte(outputStart + 7, (byte)(((byte)(packedValue & mask)) + baseChar));
             packedValue >>= numberOfBits;
 
             if (packedValue != 0)
@@ -438,19 +457,23 @@ public class JsonBinaryEncoding {
                 throw new IllegalStateException("Variable 'packedValue' must be 0 at this point.");
             }
 
-            start += 8;
+            inputStart += numberOfBits;
+            outputStart += 8;
         }
 
-        if (destinationBuffer.writableBytes() > start)
+        if (outputStart < destinationBuffer.writableBytes())
         {
-            ByteBuf paddedString = ByteBufAllocator.DEFAULT.buffer(8);
+            /*ByteBuf paddedString = ByteBufAllocator.DEFAULT.buffer(8);
             ByteBuf decodedPaddedString = ByteBufAllocator.DEFAULT.buffer(8);
             paddedString.setBytes(0, encodedString.slice(start, 8));
             DecodeCompressedStringValue(numberOfBits, paddedString, baseChar, decodedPaddedString);
             destinationBuffer.setBytes(
                 start,
                 decodedPaddedString,
-                Math.min(destinationBuffer.writableBytes() - start, decodedPaddedString.capacity()));
+                Math.min(destinationBuffer.writableBytes() - start, decodedPaddedString.capacity()));*/
+
+            // TODO @fabianm IMPLEMENT THIS BEFORE MERGE
+            throw new NotImplementedException("IMPLEMENT THIS BEFORE MERGE");
         }
     }
 

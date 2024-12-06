@@ -575,7 +575,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         return tokenType;
     }
 
-    private String readStringValue() throws JsonInvalidTokenException {
+    private String readStringValue() throws JsonParseException {
         if (!(
             (this.jsonObjectState.getCurrentTokenType() == JsonTokenType.String) ||
                 (this.jsonObjectState.getCurrentTokenType() == JsonTokenType.FieldName)))
@@ -600,8 +600,9 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
         if (TypeMarker.IsCompressedString(typeMarker) || TypeMarker.IsGuidString(typeMarker))
         {
-            // TODO @fabianm fix this before check-in
-            LOG.error("NOT YET IMPLEMENTED");
+            String decodedStringValue = JsonBinaryEncoding.decodeString(this.currentTokenBuffer);
+            LOG.info("Decoded String: {}", decodedStringValue);
+            return decodedStringValue;
         }
 
         throw new JsonInvalidTokenException();
