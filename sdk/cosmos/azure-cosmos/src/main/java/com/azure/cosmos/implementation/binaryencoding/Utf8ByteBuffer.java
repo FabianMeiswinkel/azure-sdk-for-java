@@ -74,7 +74,7 @@ public final class Utf8ByteBuffer {
             return unsafeCreateNoValidation(new EmptyByteBuf(JsonBinaryEncoding.allocator));
         }
 
-        return unsafeCreateNoValidation(ByteBufUtil.writeUtf8(JsonBinaryEncoding.allocator, value));
+        return unsafeCreateNoValidation(ByteBufUtil.writeUtf8(JsonBinaryEncoding.allocator, value).asReadOnly());
     }
 
     public static Utf8ByteBuffer create(ByteBuf utf8Bytes) {

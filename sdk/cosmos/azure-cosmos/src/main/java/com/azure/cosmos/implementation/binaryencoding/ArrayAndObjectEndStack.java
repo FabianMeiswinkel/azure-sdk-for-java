@@ -31,7 +31,9 @@ public final class ArrayAndObjectEndStack
 
     public void push(int endOffset, UniformArrayInfo arrayInfo)
     {
-        checkNotNull(arrayInfo, "Argument 'arrayInfo' must not be null.");
+        if (this.arrayInfo != null) {
+            throw new IllegalStateException();
+        }
 
         this.endOffsets.push(endOffset);
         this.arrayInfo = arrayInfo;

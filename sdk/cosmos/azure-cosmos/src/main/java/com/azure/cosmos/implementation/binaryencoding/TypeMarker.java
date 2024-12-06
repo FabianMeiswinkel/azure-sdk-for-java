@@ -6,6 +6,147 @@ package com.azure.cosmos.implementation.binaryencoding;
 /// Defines the set of type-marker values that are used to encode JSON value
 /// </summary>
 public class TypeMarker {
+    private static final boolean[] isBufferedStringCandidate = new boolean[] {
+        // Encoded literal integer value (32 values)
+        false, false, false, false, false, false, false, false,
+        false, false, false, false, false, false, false, false,
+        false, false, false, false, false, false, false, false,
+        false, false, false, false, false, false, false, false,
+
+        // Encoded 0-byte system string (32 values)
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+
+        // Encoded true-byte user string (32 values)
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+
+        // Encoded 2-byte user string (16 values)
+        true, true, true, true, true, true, true, true,
+
+        // String Values [0x68, 0x70)
+        false,  // <empty> 0x68
+        false,  // <empty> 0x69
+        false,  // <empty> 0x6A
+        false,  // <empty> 0x6B
+        false,  // <empty> 0x6C
+        false,  // <empty> 0x6D
+        false,  // <empty> 0x6E
+        false,  // <empty> 0x6F
+
+        // String Values [0x70, 0x78)
+        false,  // <empty> 0x70
+        false,  // <empty> 0x71
+        false,  // <empty> 0x72
+        false,  // <empty> 0x73
+        false,  // <empty> 0x74
+        false,  // StrGL (Lowercase GUID string)
+        false,  // StrGU (Uppercase GUID string)
+        false,  // StrGQ (Double-quoted lowercase GUID string)
+
+        // Compressed strings [falsex78, falsex8false)
+        false,  // String 1-byte length - Lowercase hexadecimal digits encoded as 4-bit characters
+        false,  // String 1-byte length - Uppercase hexadecimal digits encoded as 4-bit characters
+        false,  // String 1-byte length - Date-time character set encoded as 4-bit characters
+        false,  // String 1-byte Length - 4-bit packed characters relative to a base value
+        false,  // String 1-byte Length - 5-bit packed characters relative to a base value
+        false,  // String 1-byte Length - 6-bit packed characters relative to a base value
+        false,  // String 1-byte Length - 7-bit packed characters
+        false,  // String 2-byte Length - 7-bit packed characters
+
+        // TypeMarker-encoded string length (64 values)
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true,
+
+        // Variable Length String Values
+        true,   // StrL1 (1-byte length)
+        true,   // StrL2 (2-byte length)
+        true,   // StrL4 (4-byte length)
+        true,   // StrR1 (Reference string of 1-byte offset)
+        true,   // StrR2 (Reference string of 2-byte offset)
+        true,   // StrR3 (Reference string of 3-byte offset)
+        true,   // StrR4 (Reference string of 4-byte offset)
+        false,  // <empty> 0xC7
+
+        // Numeric Values
+        false,  // NumUI8
+        false,  // NumI16,
+        false,  // NumI32,
+        false,  // NumI64,
+        false,  // NumDbl,
+        false,  // Float32
+        false,  // Float64
+        false,  // <empty> 0xCF
+
+        // Other Value Types
+        false,  // Null
+        false,  // False
+        false,  // True
+        false,  // GUID
+        false,  // <empty> 0xD4
+        false,  // <empty> 0xD5
+        false,  // <empty> 0xD6
+        false,  // <empty> 0xD7
+
+        false,  // Int8
+        false,  // Int16
+        false,  // Int32
+        false,  // Int64
+        false,  // UInt32
+        false,  // BinL1 (1-byte length)
+        false,  // BinL2 (2-byte length)
+        false,  // BinL4 (4-byte length)
+
+        // Array Type Markers
+        false,  // Arr0
+        false,  // Arr1
+        false,  // ArrL1 (1-byte length)
+        false,  // ArrL2 (2-byte length)
+        false,  // ArrL4 (4-byte length)
+        false,  // ArrLC1 (1-byte length and count)
+        false,  // ArrLC2 (2-byte length and count)
+        false,  // ArrLC4 (4-byte length and count)
+
+        // Object Type Markers
+        false,  // Obj0
+        false,  // Obj1
+        false,  // ObjL1 (1-byte length)
+        false,  // ObjL2 (2-byte length)
+        false,  // ObjL4 (4-byte length)
+        false,  // ObjLC1 (1-byte length and count)
+        false,  // ObjLC2 (2-byte length and count)
+        false,  // ObjLC4 (4-byte length and count)
+
+        // Empty Range
+        false,  // <empty> 0xF0
+        false,  // <empty> 0xF1
+        false,  // <empty> 0xF2
+        false,  // <empty> 0xF3
+        false,  // <empty> 0xF4
+        false,  // <empty> 0xF5
+        false,  // <empty> 0xF7
+        false,  // <empty> 0xF8
+
+        // Special Values
+        false,  // <special value reserved> 0xF8
+        false,  // <special value reserved> 0xF9
+        false,  // <special value reserved> 0xFA
+        false,  // <special value reserved> 0xFB
+        false,  // <special value reserved> 0xFC
+        false,  // <special value reserved> 0xFD
+        false,  // <special value reserved> 0xFE
+        false,  // Invalid 0xFF
+    };
 
     //region [0x00, 0x20): Encoded literal integer value (32 values)
     // ---------------------------------------------------------------------
@@ -549,6 +690,11 @@ public class TypeMarker {
     /// <returns>Whether the typeMarker is for a compressed string.</returns>
     public static boolean IsCompressedString(byte typeMarker) {
         return InRange(typeMarker, CompressedLowercaseHexString, Packed7BitStringLength2 + 1);
+    }
+
+    public static boolean isBufferedStringCandidate(byte typeMarker) {
+        short unsignedTypeMarker = (short)(typeMarker & 0xFF);
+        return isBufferedStringCandidate[unsignedTypeMarker];
     }
 
     /// <summary>

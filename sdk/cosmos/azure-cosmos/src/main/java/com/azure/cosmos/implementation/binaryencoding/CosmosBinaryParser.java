@@ -27,6 +27,10 @@ import java.math.BigInteger;
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
+// NOTE: This Parser can not be used as general purpose Jackson JsonParser
+// it only allows parsing a ByteBuf - which is sufficient for the usage within the
+// Cosmos DB SDK - but means parsing from other sources (or non-blocking parsing) are not
+// possible.
 public class CosmosBinaryParser extends ParserMinimalBase {
     private final static Logger LOG = LoggerFactory.getLogger(CosmosBinaryParser.class);
 
@@ -200,12 +204,9 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
     private final JsonReadContext streamReadContext;
 
-    /// <summary>
-    /// Buffer to read from.
-    /// </summary>
-    private final JsonBinaryMemoryReader jsonBinaryBuffer;
-
     private final ByteBuf rootBuffer;
+    private ByteBuf remainingPayloadBuffer;
+    private ByteBuf currentTokenBuffer;
 
     private final JsonObjectState jsonObjectState;
 
@@ -220,7 +221,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
     private ObjectCodec codec;
 
     protected CosmosBinaryParser(
-        ByteBuf rootBuffer,
+        ByteBuf buffer,
         IOContext ctxt,
         int parserFeatures,
         ByteQuadsCanonicalizer byteSymbolCanonicalizer,
@@ -231,8 +232,8 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         checkNotNull(ctxt, "Argument 'ctxt' must not be null");
         checkNotNull(codec, "Argument 'codec' must not be null");
         checkNotNull(byteSymbolCanonicalizer, "Argument 'byteSymbolCanonicalizer' must not be null");
-        checkNotNull(rootBuffer, "Argument 'rootBuffer' must not be null");
-        checkArgument(rootBuffer.readableBytes() > 0, "Argument 'rootBuffer' must not be empty");
+        checkNotNull(buffer, "Argument 'buffer' must not be null");
+        checkArgument(buffer.readableBytes() > 0, "Argument 'rootBuffer' must not be empty");
 
         this.cosmosBinaryFeatures = cosmosBinaryFeatures;
         this.ioContext = ctxt;
@@ -242,14 +243,15 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         DupDetector dups = Feature.STRICT_DUPLICATE_DETECTION.enabledIn(parserFeatures)
             ? DupDetector.rootDetector(this) : null;
         this.streamReadContext= JsonReadContext.createRootContext(dups);
-        this.rootBuffer = rootBuffer;
+        this.rootBuffer = buffer.asReadOnly();
 
         // Only navigate the outer most JSON value and trim off trailing bytes
-        long jsonValueLength = JsonBinaryEncoding.getValueLength(rootBuffer.duplicate());
+        long jsonValueLength = JsonBinaryEncoding.getValueLength(this.rootBuffer.duplicate());
         checkArgument(
-            rootBuffer.readableBytes() >= jsonValueLength,
+            this.rootBuffer.readableBytes() >= jsonValueLength,
             "Argument 'rootBuffer' is shorter than the length prefix.");
-        this.jsonBinaryBuffer = new JsonBinaryMemoryReader(this.rootBuffer);
+        this.remainingPayloadBuffer = this.rootBuffer.duplicate();
+        this.currentTokenBuffer = this.rootBuffer.duplicate();
         this.arrayAndObjectEndStack = new ArrayAndObjectEndStack();
         this.jsonObjectState = new JsonObjectState(true, Configs.getMaxJsonBinaryNestingDepth());
         LOG.info("CosmosBinaryParser initialized");
@@ -260,7 +262,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         // Check if we just finished an array or object context
         LOG.info("--> nextToken");
         if (!this.arrayAndObjectEndStack.isEmpty()
-            && this.arrayAndObjectEndStack.peek() == this.jsonBinaryBuffer.getPosition())
+            && this.arrayAndObjectEndStack.peek() == this.remainingPayloadBuffer.readerIndex())
         {
             if (this.jsonObjectState.isInArrayContext())
             {
@@ -277,7 +279,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
             this.arrayAndObjectEndStack.pop();
         }
-        else if (this.jsonBinaryBuffer.isEof())
+        else if (this.remainingPayloadBuffer.readableBytes() == 0)
         {
             // Need to check if we are still inside an object or array
             if (this.jsonObjectState.getCurrentDepth() != 0)
@@ -296,6 +298,10 @@ public class CosmosBinaryParser extends ParserMinimalBase {
             }
 
             LOG.info("<-- nextToken, null");
+            this.currentTokenBuffer =  this.remainingPayloadBuffer = this.remainingPayloadBuffer.duplicate().setIndex(
+                this.rootBuffer.readerIndex() + this.rootBuffer.readableBytes(),
+                0
+            );
             return _currToken = null;
         }
         else if (this.jsonObjectState.getCurrentDepth() == 0
@@ -306,7 +312,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         }
         else
         {
-            ByteBuf readOnlySpan = this.jsonBinaryBuffer.getRetainedBufferedRawJsonToken();
+            ByteBuf readOnlySpan = this.remainingPayloadBuffer.duplicate();
 
             byte typeMarker;
             int nextTokenOffset;
@@ -316,8 +322,9 @@ public class CosmosBinaryParser extends ParserMinimalBase {
                 typeMarker = currentArrayInfo.ItemTypeMarker;
                 nextTokenOffset = currentArrayInfo.ItemSize;
             } else {
-                typeMarker = readOnlySpan.readByte();
-                nextTokenOffset = JsonBinaryEncoding.getValueLength(readOnlySpan.slice());
+                typeMarker = readOnlySpan.getByte(readOnlySpan.readerIndex());
+                nextTokenOffset = JsonBinaryEncoding.getValueLength(readOnlySpan.duplicate());
+                readOnlySpan.skipBytes(1);
             }
 
             JsonTokenType tokenType = getJsonTokenType(typeMarker, currentArrayInfo);
@@ -331,7 +338,7 @@ public class CosmosBinaryParser extends ParserMinimalBase {
                 // a uniform number array that is within a uniform array of number arrays.
                 if (this.arrayAndObjectEndStack.isWithinUniformArray()) {
                     // ASSERT(tokenType == JsonTokenType.BeginArray);
-                    this.arrayAndObjectEndStack.pushNestedArray(this.jsonBinaryBuffer.getPosition());
+                    this.arrayAndObjectEndStack.pushNestedArray(this.remainingPayloadBuffer.readerIndex());
 
                     nextTokenOffset = 0;
                 } else {
@@ -339,11 +346,9 @@ public class CosmosBinaryParser extends ParserMinimalBase {
                     // array/object end token is.
                     // Also, the next token offset is just the array type marker + length prefix + count prefix
                     UniformArrayInfo uniformArrayInfo =
-                        JsonBinaryEncoding.getUniformArrayInfo(readOnlySpan.slice(), false);
-                    if (uniformArrayInfo != null) {
-                        this.arrayAndObjectEndStack.push(
-                            this.jsonBinaryBuffer.getPosition() + nextTokenOffset, uniformArrayInfo);
-                    }
+                        JsonBinaryEncoding.getUniformArrayInfo(readOnlySpan.duplicate(), false);
+                    this.arrayAndObjectEndStack.push(
+                        this.remainingPayloadBuffer.readerIndex() + nextTokenOffset, uniformArrayInfo);
 
                     nextTokenOffset = JsonBinaryEncoding.getArrayOrObjectPrefixLength(typeMarker);
                 }
@@ -351,12 +356,30 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
             this.jsonObjectState.registerToken(tokenType);
             if (nextTokenOffset > 0) {
-                this.jsonBinaryBuffer.skipBytes(nextTokenOffset);
+                this.currentTokenBuffer =
+                    this
+                        .remainingPayloadBuffer
+                        .duplicate()
+                        .setIndex(
+                            this.remainingPayloadBuffer.readerIndex(),
+                            this.remainingPayloadBuffer.readerIndex() + nextTokenOffset);
+                this.remainingPayloadBuffer = this.remainingPayloadBuffer.skipBytes(nextTokenOffset);
+            } else {
+                this.currentTokenBuffer = this.remainingPayloadBuffer.duplicate().setIndex(
+                    this.rootBuffer.readerIndex() + this.rootBuffer.readableBytes(),
+                    this.rootBuffer.readerIndex() + this.rootBuffer.readableBytes()
+                );
             }
         }
 
         JsonToken jsonToken = this.jsonObjectState.getCurrentJsonToken();
-        LOG.info("<-- nextToken, {}", jsonToken);
+        LOG.info(
+            "<-- nextToken, {}, remainingBuffer: {}/{}, currentTokenBuffer: {}/{}",
+            jsonToken,
+            this.remainingPayloadBuffer.readerIndex(),
+            this.remainingPayloadBuffer.readableBytes(),
+            this.currentTokenBuffer != null ? this.currentTokenBuffer.readerIndex() : "n/a",
+            this.currentTokenBuffer != null ? this.currentTokenBuffer.readableBytes() : "n/a");
         return _currToken = jsonToken;
     }
 
@@ -412,7 +435,11 @@ public class CosmosBinaryParser extends ParserMinimalBase {
     @Override
     public JsonLocation getCurrentLocation() {
         LOG.info("getCurrentLocation");
-        return this.jsonBinaryBuffer.getCurrentJsonLocation(0);
+        return new JsonLocation(
+            this.rootBuffer,
+            this.rootBuffer.capacity(),
+            1,
+            this.currentTokenBuffer.readerIndex());
     }
 
     @Override
@@ -428,8 +455,11 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
     @Override
     public String getText() throws IOException {
-        LOG.info("getText");
-        return null;
+        LOG.info("--> getText");
+
+        String textValue = this.readStringValue();
+        LOG.info("<-- [{}]", textValue);
+        return textValue;
     }
 
     @Override
@@ -553,13 +583,13 @@ public class CosmosBinaryParser extends ParserMinimalBase {
             throw new JsonInvalidTokenException();
         }
 
-        byte typeMarker = this.jsonBinaryBuffer.read();
+        byte typeMarker = this.currentTokenBuffer.getByte(this.currentTokenBuffer.readerIndex());
 
-        if (JsonBinaryEncoding.isBufferedStringCandidate[typeMarker])
+        if (TypeMarker.isBufferedStringCandidate(typeMarker))
         {
             TryResult<String> tryResult = JsonBinaryEncoding.tryGetBufferedStringValue(
-                this.jsonBinaryBuffer.getRetainedBufferedRawJsonToken(),
-                this.jsonBinaryBuffer.buffer.slice());
+                this.rootBuffer.duplicate(),
+                this.currentTokenBuffer.duplicate());
             if (!tryResult.isSuccess())
             {
                 throw new JsonInvalidTokenException();
