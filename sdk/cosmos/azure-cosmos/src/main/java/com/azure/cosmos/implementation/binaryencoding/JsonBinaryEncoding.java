@@ -442,17 +442,16 @@ public class JsonBinaryEncoding {
 
         if (outputStart < destinationBuffer.writableBytes())
         {
-            /*ByteBuf paddedString = ByteBufAllocator.DEFAULT.buffer(8);
+            ByteBuf paddedString = ByteBufAllocator.DEFAULT.buffer(8);
             ByteBuf decodedPaddedString = ByteBufAllocator.DEFAULT.buffer(8);
-            paddedString.setBytes(0, encodedString.slice(start, 8));
+            paddedString.setBytes(0, encodedString, inputStart, encodedString.readableBytes() - inputStart);
+            paddedString.setIndex(0, 8);
             DecodeCompressedStringValue(numberOfBits, paddedString, baseChar, decodedPaddedString);
+            decodedPaddedString.setIndex(0, 8);
             destinationBuffer.setBytes(
-                start,
+                outputStart,
                 decodedPaddedString,
-                Math.min(destinationBuffer.writableBytes() - start, decodedPaddedString.capacity()));*/
-
-            // TODO @fabianm IMPLEMENT THIS BEFORE MERGE
-            throw new NotImplementedException("IMPLEMENT THIS BEFORE MERGE");
+                Math.min(destinationBuffer.writableBytes() - outputStart, decodedPaddedString.capacity()));
         }
     }
 
