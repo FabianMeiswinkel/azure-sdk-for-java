@@ -512,8 +512,31 @@ public class CosmosBinaryParser extends ParserMinimalBase {
 
     @Override
     public double getDoubleValue() throws IOException {
+
         LOG.info("getDoubleValue");
-        return 0;
+
+        switch (this.jsonObjectState.getCurrentTokenType()) {
+            case Number:
+                return Number64.toDouble(JsonBinaryEncoding.decodeNumberValue(this.currentTokenBuffer));
+            case Float32:
+                return JsonBinaryEncoding.decodeFloat32Value(this.currentTokenBuffer);
+            case Float64:
+                return JsonBinaryEncoding.decodeFloat64Value(this.currentTokenBuffer);
+            case Int8:
+                return JsonBinaryEncoding.decodeInt8Value(this.currentTokenBuffer);
+            case Int16:
+                return JsonBinaryEncoding.decodeInt16Value(this.currentTokenBuffer);
+            case Int32:
+                return JsonBinaryEncoding.decodeInt32Value(this.currentTokenBuffer);
+            case Int64:
+                return JsonBinaryEncoding.decodeInt64Value(this.currentTokenBuffer);
+            case UInt8:
+                return (short)(JsonBinaryEncoding.decodeInt8Value(this.currentTokenBuffer) & 0xff);
+            case UInt32:
+                return JsonBinaryEncoding.decodeUInt32Value(this.currentTokenBuffer);
+            default:
+                throw new JsonNotNumberTokenException();
+        }
     }
 
     @Override
