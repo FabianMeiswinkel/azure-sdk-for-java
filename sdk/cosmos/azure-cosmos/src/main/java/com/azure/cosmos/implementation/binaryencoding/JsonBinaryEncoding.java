@@ -592,7 +592,7 @@ public class JsonBinaryEncoding {
             return TryBiResult.failed(Number64.class, Integer.class);
         }
 
-        byte typeMarker = numberToken.getByte(0);
+        byte typeMarker = numberToken.getByte(numberToken.readerIndex());
 
         if (TypeMarker.IsEncodedNumberLiteral(typeMarker))
         {
@@ -609,7 +609,7 @@ public class JsonBinaryEncoding {
                         return TryBiResult.failed(Number64.class, Integer.class);
                     }
 
-                    number64 = new Number64(numberToken.getByte(1));
+                    number64 = new Number64(numberToken.getByte(numberToken.readerIndex() + 1));
                     bytesConsumed = 1 + 1;
                     break;
 
@@ -619,7 +619,7 @@ public class JsonBinaryEncoding {
                         return TryBiResult.failed(Number64.class, Integer.class);
                     }
 
-                    number64 = new Number64(numberToken.getShort (1));
+                    number64 = new Number64(numberToken.getShortLE(numberToken.readerIndex() + 1));
                     bytesConsumed = 1 + 2;
                     break;
 
@@ -629,7 +629,7 @@ public class JsonBinaryEncoding {
                         return TryBiResult.failed(Number64.class, Integer.class);
                     }
 
-                    number64 = new Number64(numberToken.getInt(1));
+                    number64 = new Number64(numberToken.getIntLE(numberToken.readerIndex() + 1));
                     bytesConsumed = 1 + 4;
                     break;
 
@@ -639,7 +639,7 @@ public class JsonBinaryEncoding {
                         return TryBiResult.failed(Number64.class, Integer.class);
                     }
 
-                    number64 = new Number64(numberToken.getLong(1));
+                    number64 = new Number64(numberToken.getLongLE(numberToken.readerIndex() + 1));
                     bytesConsumed = 1 + 8;
                     break;
 
@@ -649,12 +649,12 @@ public class JsonBinaryEncoding {
                         return TryBiResult.failed(Number64.class, Integer.class);
                     }
 
-                    number64 = new Number64(numberToken.getDouble(1));
+                    number64 = new Number64(numberToken.getDoubleLE(numberToken.readerIndex() + 1));
                     bytesConsumed = 1 + 8;
                     break;
 
                 default:
-                    throw new JsonInvalidNumberException();
+                    return TryBiResult.failed(Number64.class, Integer.class);
             }
         }
 

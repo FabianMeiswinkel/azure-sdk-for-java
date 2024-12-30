@@ -128,11 +128,11 @@ public class CosmosBinaryParser extends ParserMinimalBase {
         JsonTokenType.Number,       // NumUI64
 
         // Number Values
-        JsonTokenType.Number,       // NumUI8
-        JsonTokenType.Number,       // NumI16,
-        JsonTokenType.Number,       // NumI32,
-        JsonTokenType.Number,       // NumI64,
-        JsonTokenType.Number,       // NumDbl,
+        JsonTokenType.UInt8,       // NumUI8
+        JsonTokenType.Int16,       // NumI16,
+        JsonTokenType.Int32,       // NumI32,
+        JsonTokenType.Int64,       // NumI64,
+        JsonTokenType.Float64,       // NumDbl,
         JsonTokenType.Float32,      // Float32
         JsonTokenType.Float64,      // Float64
         JsonTokenType.NotStarted,   // Float16
@@ -499,12 +499,6 @@ public class CosmosBinaryParser extends ParserMinimalBase {
     }
 
     @Override
-    public BigInteger getBigIntegerValue() throws IOException {
-        LOG.info("getBigIntegerValue");
-        return null;
-    }
-
-    @Override
     public float getFloatValue() throws IOException {
         LOG.info("getFloatValue");
         return 0;
@@ -534,6 +528,46 @@ public class CosmosBinaryParser extends ParserMinimalBase {
                 return (short)(JsonBinaryEncoding.decodeInt8Value(this.currentTokenBuffer) & 0xff);
             case UInt32:
                 return JsonBinaryEncoding.decodeUInt32Value(this.currentTokenBuffer);
+            default:
+                throw new JsonNotNumberTokenException();
+        }
+    }
+
+
+    @Override
+    public BigInteger getBigIntegerValue()throws IOException {
+        LOG.info("getBigIntegerValue");
+
+        Implement getNumberType first
+
+        switch (this.jsonObjectState.getCurrentTokenType()) {
+            case Number:
+                return BigInteger.valueOf(
+                    Number64.toLong(JsonBinaryEncoding.decodeNumberValue(this.currentTokenBuffer)));
+            case Float32:
+                return BigInteger.valueOf(
+                    (long)JsonBinaryEncoding.decodeFloat32Value(this.currentTokenBuffer));
+            case Float64:
+                return BigInteger.valueOf(
+                    (long)JsonBinaryEncoding.decodeFloat64Value(this.currentTokenBuffer));
+            case Int8:
+                return BigInteger.valueOf(
+                    JsonBinaryEncoding.decodeInt8Value(this.currentTokenBuffer));
+            case Int16:
+                return BigInteger.valueOf(
+                    JsonBinaryEncoding.decodeInt16Value(this.currentTokenBuffer));
+            case Int32:
+                return BigInteger.valueOf(
+                    JsonBinaryEncoding.decodeInt32Value(this.currentTokenBuffer));
+            case Int64:
+                return BigInteger.valueOf(
+                    JsonBinaryEncoding.decodeInt64Value(this.currentTokenBuffer));
+            case UInt8:
+                return BigInteger.valueOf(
+                    (short)(JsonBinaryEncoding.decodeInt8Value(this.currentTokenBuffer) & 0xff));
+            case UInt32:
+                return BigInteger.valueOf(
+                    JsonBinaryEncoding.decodeUInt32Value(this.currentTokenBuffer));
             default:
                 throw new JsonNotNumberTokenException();
         }

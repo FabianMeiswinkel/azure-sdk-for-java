@@ -357,9 +357,10 @@ public final class JsonObjectState
 
             case Float32:
             case Float64:
-            case Number:
                 return JsonToken.VALUE_NUMBER_FLOAT;
 
+            case Number:
+                return JsonToken.VALUE_NUMBER_FLOAT;
             case String:
             case Guid:
             case Binary:
