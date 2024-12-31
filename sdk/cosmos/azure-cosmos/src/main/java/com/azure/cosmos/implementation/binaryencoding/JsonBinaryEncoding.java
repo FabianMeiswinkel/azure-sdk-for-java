@@ -550,8 +550,8 @@ public class JsonBinaryEncoding {
     private static void DecodeGuidStringValue(ByteBuf encodedString, boolean isUpperCaseGuid, ByteBuf destinationBuffer)
     {
         short[] byteLookupTable = isUpperCaseGuid
-            ? StringCompressionLookupTables.UppercaseHex.getByteToTwoChars()
-            : StringCompressionLookupTables.LowercaseHex.getByteToTwoChars();
+            ? StringCompressionLookupTables.UppercaseHexLittleEndian.getByteToTwoChars()
+            : StringCompressionLookupTables.LowercaseHexLittleEndian.getByteToTwoChars();
 
         // GUID Format: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX
         destinationBuffer.setShort(0, byteLookupTable[encodedString.getUnsignedByte(0)]);
@@ -567,7 +567,7 @@ public class JsonBinaryEncoding {
         destinationBuffer.setByte(18, (byte)'-');
         destinationBuffer.setShort(19, byteLookupTable[encodedString.getUnsignedByte(8)]);
         destinationBuffer.setShort(21, byteLookupTable[encodedString.getUnsignedByte(9)]);
-        destinationBuffer.setByte(13, (byte)'-');
+        destinationBuffer.setByte(23, (byte)'-');
         destinationBuffer.setShort(24, byteLookupTable[encodedString.getUnsignedByte(10)]);
         destinationBuffer.setShort(26, byteLookupTable[encodedString.getUnsignedByte(11)]);
         destinationBuffer.setShort(28, byteLookupTable[encodedString.getUnsignedByte(12)]);
@@ -658,7 +658,6 @@ public class JsonBinaryEncoding {
             }
         }
 
-        numberToken.skipBytes(bytesConsumed);
         return TryBiResult.success(number64, bytesConsumed);
     }
 
@@ -998,7 +997,7 @@ public class JsonBinaryEncoding {
 
                     return tryGetBufferedStringValue(
                         rootBuffer,
-                        rootBuffer.slice(referenceStringOffset, rootBuffer.readableBytes() - referenceStringOffset));
+                        rootBuffer.slice(referenceStringOffset - 1, rootBuffer.readableBytes() - referenceStringOffset + 1));
 
                 case TypeMarker.ReferenceString2ByteOffset:
                     if (stringToken.readableBytes() < JsonBinaryEncoding.TwoByteOffset)
@@ -1371,7 +1370,12 @@ public class JsonBinaryEncoding {
             (short)0x4638, (short)0x4639, (short)0x4641, (short)0x4642, (short)0x4643, (short)0x4644, (short)0x4645, (short)0x4646,
         });
 
-    private final CharSequence list;
+        public static final StringCompressionLookupTables LowercaseHexLittleEndian = LowercaseHex.toLittleEndian();
+
+        public static final StringCompressionLookupTables UppercaseHexLittleEndian = UppercaseHex.toLittleEndian();
+
+
+        private final CharSequence list;
     private final BitSet bitmap;
     private final byte[] charToByte;
     private final short[] byteToTwoChars;
@@ -1385,11 +1389,11 @@ public class JsonBinaryEncoding {
             checkNotNull(bitmap, "Parameter 'bitmap' MUST NOT be null.");
             checkNotNull(charToByte, "Parameter 'charToByte' MUST NOT be null.");
             checkNotNull(byteToTwoChars, "Parameter 'byteToTwoChars' MUST NOT be null.");
-            checkArgument(list.length() != 16, "Parameter 'list' must be of length 16.");
-            checkArgument(bitmap.length() != 128, "Parameter 'bitmap' must be of length 128.");
-            checkArgument(charToByte.length != 256, "Parameter 'charToByte' must be of length 256.");
+            checkArgument(list.length() == 16, "Parameter 'list' must be of length 16.");
+            checkArgument(bitmap.length() <= 128, "Parameter 'bitmap' must be of length less than or equal to 128.");
+            checkArgument(charToByte.length == 256, "Parameter 'charToByte' must be of length 256.");
             checkArgument(
-                byteToTwoChars.length != 256,
+                byteToTwoChars.length == 256,
                 "Parameter 'byteToTwoChars' must be of length 256.");
 
             this.list = list;
@@ -1422,6 +1426,20 @@ public class JsonBinaryEncoding {
             checkNotNull(byteToTwoChars, "Parameter 'byteToTwoChars' MUST NOT be null.");
 
             return new StringCompressionLookupTables(list, BitSet.valueOf(charSet), charToByte, byteToTwoChars);
+        }
+
+        public StringCompressionLookupTables toLittleEndian() {
+            short[] byteToTwoCharsLittleEndian = new short[this.byteToTwoChars.length];
+            for (int i= 0; i < byteToTwoCharsLittleEndian.length; i++) {
+                short original = this.byteToTwoChars[i];
+                byteToTwoCharsLittleEndian[i] = (short)(original << 8 | original >>> 8);
+            }
+
+            return new StringCompressionLookupTables(
+                this.list,
+                this.bitmap,
+                this.charToByte,
+                byteToTwoCharsLittleEndian);
         }
     }
 

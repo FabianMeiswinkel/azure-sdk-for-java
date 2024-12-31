@@ -2,9 +2,12 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.implementation.binaryencoding;
 
+import com.azure.core.util.metrics.LongGauge;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.JsonTokenId;
+import io.netty.buffer.ByteBuf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkArgument;
 
@@ -13,6 +16,8 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkAr
 /// </summary>
 public final class JsonObjectState
 {
+    private final static Logger LOG = LoggerFactory.getLogger(JsonObjectState.class);
+
     /// <summary>
     /// This constant defines the maximum nesting depth that the parser supports.
     /// The JSON spec states that this is an implementation dependent thing, so we're just picking a value for now.
@@ -318,8 +323,10 @@ public final class JsonObjectState
         this.currentTokenType = JsonTokenType.FieldName;
     }
 
-    public JsonToken getCurrentJsonToken() {
-        JsonTokenType currentTokenTypeSnapshot = this.currentTokenType;
+    private static JsonToken getCurrentJsonTokenCore(
+        JsonTokenType currentTokenTypeSnapshot,
+        ByteBuf currentTokenBuffer) throws JsonParseException {
+
         switch (currentTokenTypeSnapshot) {
             case NotStarted:
                 return JsonToken.NOT_AVAILABLE;
@@ -360,6 +367,10 @@ public final class JsonObjectState
                 return JsonToken.VALUE_NUMBER_FLOAT;
 
             case Number:
+                Number64 value = JsonBinaryEncoding.decodeNumberValue(currentTokenBuffer);
+                if (value.isInteger()) {
+                    return JsonToken.VALUE_NUMBER_INT;
+                }
                 return JsonToken.VALUE_NUMBER_FLOAT;
             case String:
             case Guid:
@@ -370,5 +381,14 @@ public final class JsonObjectState
                 throw new IllegalStateException(
                     "Unknown json token type '" + currentTokenTypeSnapshot + "'.");
         }
+    }
+
+    public JsonToken getCurrentJsonToken(ByteBuf currentTokenBuffer) throws JsonParseException {
+        JsonTokenType currentTokenTypeSnapshot = this.currentTokenType;
+        JsonToken value = getCurrentJsonTokenCore(currentTokenTypeSnapshot, currentTokenBuffer);
+
+        LOG.info("getCurrentJsonToken: {} -> {}", currentTokenTypeSnapshot, value);
+
+        return value;
     }
 }
