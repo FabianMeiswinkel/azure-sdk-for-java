@@ -35,6 +35,11 @@ public class JsonBinaryDotNetRefenceTestData {
                 "{\"id\":\"SomeId\",\"Property01\":\"HelloWorld\",\"Property02\":\"HelloWorld\",\"Property03\":\"9407a594-42a2-4000-9335-b049a271e861\"}",
                 "gOpHLIZTb21lSWSKUHJvcGVydHkwMYpIZWxsb1dvcmxkilByb3BlcnR5MDLDFopQcm9wZXJ0eTAzdUlwWkkkKgQAOVMLlCoXjhY="
             },
+            new Object[] {
+                "HexString",
+                "{\"BlobProperty01\":\"0102030405060708090A\"}",
+                "gOmOQmxvYlByb3BlcnR5MDF5FBAgMEBQYHCAkKA="
+            },
         };
     }
 }
