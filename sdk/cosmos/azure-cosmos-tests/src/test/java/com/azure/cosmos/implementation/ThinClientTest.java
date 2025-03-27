@@ -16,9 +16,9 @@ public class ThinClientTest {
         try {
             //String thinclientEndpoint = "https://cdb-ms-stage-eastus2-fe2.eastus2.cloudapp.azure.com:10650";
             //String thinclientEndpoint = "https://chukangzhongstagesignoff.documents-staging.windows-ppe.net:443/";
-            System.setProperty(Configs.THINCLIENT_ENABLED, "true");
+            System.setProperty("COSMOS.THINCLIENT_ENABLED", "true");
             //System.setProperty(Configs.THINCLIENT_ENDPOINT, thinclientEndpoint);
-            System.setProperty(Configs.HTTP2_ENABLED, "true");
+            System.setProperty("COSMOS.HTTP2_ENABLED", "true");
 
             CosmosAsyncClient client  = new CosmosClientBuilder()
                     .key(TestConfigurations.MASTER_KEY)
@@ -40,7 +40,6 @@ public class ThinClientTest {
             container.readItem(testItem.getId(), new PartitionKey(testItem.getId()), JsonNode.class).block();*/
         } finally {
             System.clearProperty(Configs.THINCLIENT_ENABLED);
-            System.clearProperty(Configs.THINCLIENT_ENDPOINT);
             System.clearProperty(Configs.HTTP2_ENABLED);
         }
 

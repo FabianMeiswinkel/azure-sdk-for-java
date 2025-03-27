@@ -66,7 +66,7 @@ public class RxGatewayStoreModel implements RxStoreModel, HttpTransportSerialize
     private final QueryCompatibilityMode queryCompatibilityMode;
     protected final GlobalEndpointManager globalEndpointManager;
     private ConsistencyLevel defaultConsistencyLevel;
-    private ISessionContainer sessionContainer;
+    protected ISessionContainer sessionContainer;
     private ThroughputControlStore throughputControlStore;
     private boolean useMultipleWriteLocations;
     private RxPartitionKeyRangeCache partitionKeyRangeCache;
@@ -316,7 +316,7 @@ public class RxGatewayStoreModel implements RxStoreModel, HttpTransportSerialize
     }
 
     public URI getRootUri(RxDocumentServiceRequest request) {
-        return this.globalEndpointManager.resolveServiceEndpoint(request).getGatewayLocationEndpoint();
+        return this.globalEndpointManager.resolveServiceEndpoint(request).getGatewayRegionalEndpoint();
     }
 
     private URI getUri(RxDocumentServiceRequest request) throws URISyntaxException {
@@ -324,7 +324,7 @@ public class RxGatewayStoreModel implements RxStoreModel, HttpTransportSerialize
         if (rootUri == null) {
             if (request.getIsMedia()) {
                 // For media read request, always use the write endpoint.
-                rootUri = this.globalEndpointManager.getWriteEndpoints().get(0).getGatewayLocationEndpoint();
+                rootUri = this.globalEndpointManager.getWriteEndpoints().get(0).getGatewayRegionalEndpoint();
             } else {
                 rootUri = getRootUri(request);
             }
@@ -519,6 +519,7 @@ public class RxGatewayStoreModel implements RxStoreModel, HttpTransportSerialize
                 String.format("%s, StatusCode: %s", cosmosError.getMessage(), statusCodeString),
                 cosmosError.getPartitionedQueryExecutionInfo());
 
+            logger.error("Error body: {} - {}", statusCode, body);
             CosmosException dce = BridgeInternal.createCosmosException(request.requestContext.resourcePhysicalAddress, statusCode, cosmosError, headers.toMap());
             BridgeInternal.setRequestHeaders(dce, request.getHeaders());
             throw dce;

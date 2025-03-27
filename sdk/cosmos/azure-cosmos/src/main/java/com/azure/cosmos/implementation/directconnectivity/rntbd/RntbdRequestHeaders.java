@@ -68,6 +68,7 @@ public final class RntbdRequestHeaders extends RntbdTokenStream<RntbdRequestHead
         final byte[] content = request.getContentAsByteArray();
 
         this.getPayloadPresent().setValue(content != null && content.length > 0);
+
         RntbdToken replicaPathToken = this.getReplicaPath();
         if (replicaPathToken != null) {
             replicaPathToken.setValue(args.replicaPath());
@@ -290,7 +291,9 @@ public final class RntbdRequestHeaders extends RntbdTokenStream<RntbdRequestHead
 
     private RntbdToken getPriorityLevel() { return this.get(RntbdRequestHeader.PriorityLevel); }
 
-    private RntbdToken getGlobalDatabaseAccountName() { return this.get(RntbdRequestHeader.GlobalDatabaseAccountName); }
+    private RntbdToken getGlobalDatabaseAccountName() {
+        return this.get(RntbdRequestHeader.GlobalDatabaseAccountName);
+    }
 
     private RntbdToken getDatabaseName() {
         return this.get(RntbdRequestHeader.DatabaseName);
@@ -1352,11 +1355,8 @@ public final class RntbdRequestHeaders extends RntbdTokenStream<RntbdRequestHead
                     token.setValue(Boolean.parseBoolean(value));
                     break;
                 }
-                case Bytes: {
-                    token.setValue(value.getBytes());
-                    break;
-                }
                 case Double: {
+
                     token.setValue(parseDouble(name, value));
                     break;
                 }

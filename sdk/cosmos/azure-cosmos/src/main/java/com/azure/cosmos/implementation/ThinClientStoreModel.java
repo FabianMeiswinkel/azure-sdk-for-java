@@ -3,6 +3,7 @@
 package com.azure.cosmos.implementation;
 
 import com.azure.cosmos.ConsistencyLevel;
+import com.azure.cosmos.implementation.apachecommons.lang.StringUtils;
 import com.azure.cosmos.implementation.directconnectivity.StoreResponse;
 import com.azure.cosmos.implementation.directconnectivity.WFConstants;
 import com.azure.cosmos.implementation.directconnectivity.rntbd.RntbdConstants;
@@ -22,15 +23,12 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
 
@@ -43,20 +41,6 @@ import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNo
 public class ThinClientStoreModel extends RxGatewayStoreModel {
 
     private static final Logger logger = LoggerFactory.getLogger(ThinClientStoreModel.class);
-
-    private static final List<RntbdConstants.RntbdRequestHeader> thinClientHeadersInOrder = Arrays.asList(
-        RntbdConstants.RntbdRequestHeader.EffectivePartitionKey,
-        RntbdConstants.RntbdRequestHeader.GlobalDatabaseAccountName,
-        RntbdConstants.RntbdRequestHeader.DatabaseName,
-        RntbdConstants.RntbdRequestHeader.CollectionName,
-        RntbdConstants.RntbdRequestHeader.CollectionRid,
-        //RntbdConstants.RntbdRequestHeader.ResourceId,
-        RntbdConstants.RntbdRequestHeader.PayloadPresent,
-        RntbdConstants.RntbdRequestHeader.DocumentName,
-        RntbdConstants.RntbdRequestHeader.AuthorizationToken,
-        RntbdConstants.RntbdRequestHeader.Date);
-
-
 
     public ThinClientStoreModel(
         DiagnosticsClientContext clientContext,
@@ -101,14 +85,15 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
         // Since the Thin client proxy also needs to set the user-agent header to a different value
         // it is not added to the rntbd headers - just http-headers in the SDK
         defaultHeaders.put(HttpConstants.HttpHeaders.USER_AGENT, userAgentContainer.getUserAgent());
+        defaultHeaders.put(HttpConstants.HttpHeaders.ACTIVITY_ID, "000000-0000-0000-00000-000000000001");
 
         return defaultHeaders;
     }
 
     @Override
     public URI getRootUri(RxDocumentServiceRequest request) {
-        //var uri = this.globalEndpointManager.resolveServiceEndpoint(request).getThinClientLocationEndpoint();
-        return URI.create("https://57.155.105.105:10650/"); // https://chukangzhongstagesignoff-eastus2.documents-staging.windows-ppe.net:10650/
+        // need to have thin client endpoint here
+        return this.globalEndpointManager.resolveServiceEndpoint(request).getThinclientRegionalEndpoint();
     }
 
     @Override
@@ -127,18 +112,34 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
                 response.setDecodeEndTime(Instant.now());
                 response.setDecodeStartTime(decodeStartTime);
 
-                return super.unwrapToStoreResponse(
-                    request,
-                    response.getStatus().code(),
-                    new HttpHeaders(response.getHeaders().asMap(request.getActivityId())),
-                    response.getContent()
-                );
+                StoreResponse storeResponse = null;
+                try {
+                    storeResponse = super.unwrapToStoreResponse(
+                        request,
+                        response.getStatus().code(),
+                        new HttpHeaders(response.getHeaders().asMap(request.getActivityId())),
+                        response.getContent()
+                    );
+                } catch (Exception error) {
+                    logger.error("Decoding error happened", error);
+
+                    throw error;
+                }
+
+                return storeResponse;
             }
 
             return super.unwrapToStoreResponse(request, statusCode, headers, null);
         }
 
         throw new IllegalStateException("Invalid rntbd response");
+    }
+
+    private static String toHexString(byte[] ba) {
+        StringBuilder str = new StringBuilder();
+        for(int i = 0; i < ba.length; i++)
+            str.append(String.format("%x", ba[i]));
+        return str.toString();
     }
 
     @Override
@@ -148,18 +149,19 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
         request.setThinclientHeaders(request.getOperationType().name(), request.getResourceType().name());
 
         byte[] epk = request.getPartitionKeyInternal().getEffectivePartitionKeyBytes(request.getPartitionKeyInternal(), request.getPartitionKeyDefinition());
+        logger.error("EPK Base64: {}", java.util.Base64.getEncoder().encodeToString(epk));
+        logger.error("EPK HEX: {}", toHexString(epk));
         if (request.properties == null) {
             request.properties = new HashMap<>();
         }
+
         //request.properties.put(EFFECTIVE_PARTITION_KEY, epk);
         //request.properties.put(HttpConstants.HttpHeaders.GLOBAL_DATABASE_ACCOUNT_NAME, "chukangzhongstagesignoff");
-        request.getHeaders().put(HttpConstants.HttpHeaders.GLOBAL_DATABASE_ACCOUNT_NAME, "tiagonapoli-cdb-test"); // "chukangzhongstagesignoff"
-        request.getHeaders().put(WFConstants.BackendHeaders.COLLECTION_RID, "cLklAJU8SN0=");
+        request.getHeaders().put(HttpConstants.HttpHeaders.GLOBAL_DATABASE_ACCOUNT_NAME, "thinclienttest"); // "chukangzhongstagesignoff"
+        request.getHeaders().put(WFConstants.BackendHeaders.COLLECTION_RID, "zd0DAK23P8I=");
         // todo - neharao1: no concept of a replica / service endpoint that can be passed
         RntbdRequestArgs rntbdRequestArgs = new RntbdRequestArgs(request);
 
-        // todo - neharao1: validate what HTTP headers are needed - for now have put default ThinClient HTTP headers
-        // todo - based on fabianm comment - thinClient also takes op type and resource type headers as HTTP headers
         HttpHeaders headers = this.getHttpHeaders();
 
         RntbdRequest rntbdRequest = RntbdRequest.from(rntbdRequestArgs);
@@ -171,6 +173,20 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
         } else {
             logger.error("Updated EPK to value {}", HexConvert.bytesToHex(epk));
         }
+
+        // Add SessionToken header
+        String sessionToken = this.sessionContainer.resolveGlobalSessionToken(request);
+        if (StringUtils.isNotEmpty(sessionToken)) {
+            boolean setSessionToken = rntbdRequest.setHeaderValue(
+                RntbdConstants.RntbdRequestHeader.SessionToken,
+                sessionToken);
+            if (!setSessionToken) {
+                logger.error("Failed to update SessionToken to value {}", sessionToken);
+            } else {
+                logger.debug("Updated SessionToken to value {}", sessionToken);
+            }
+        }
+
         // todo: neharao1 - validate whether Java heap buffer is okay v/s Direct buffer
         // todo: eventually need to use pooled buffer
         ByteBuf byteBuf = Unpooled.buffer();
@@ -185,21 +201,9 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
         byte[] contentAsByteArray = new byte[byteBuf.writerIndex()];
         byteBuf.getBytes(0, contentAsByteArray, 0, byteBuf.writerIndex());
 
-        try {
-            Files.write(java.nio.file.Paths.get("E:\\Temp\\java" + UUID.randomUUID() + ".bin"), contentAsByteArray);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
         return new HttpRequest(
             HttpMethod.POST,
-            //requestUri,
-            //https://thinclient-performancetests-eastus2.documents-staging.windows-ppe.net:10650
-            //https://cdb-ms-stage-eastus2-fe2-sql.eastus2.cloudapp.azure.com:10650
-            //https://57.155.105.105:10650/
-            // https://tiagonapoli-cdb-test-westus3.documents.azure.com:10650
-            URI.create("https://57.155.105.105:10650/"), // https://127.0.0.1:10650/ //https://chukangzhongstagesignoff-eastus2.documents-staging.windows-ppe.net:10650/ // thinclient-performancetests-eastus2.documents-staging.windows-ppe.net  cdb-ms-stage-eastus2-fe2-sql.eastus2.cloudapp.azure.com
-            //requestUri.getPort(),
+            requestUri,
             10650,
             headers,
             Flux.just(contentAsByteArray));
@@ -211,6 +215,7 @@ public class ThinClientStoreModel extends RxGatewayStoreModel {
         Map<String, String> defaultHeaders = this.getDefaultHeaders();
 
         for (Map.Entry<String, String> header : defaultHeaders.entrySet()) {
+            logger.error("HTTP Header {}: {}", header.getKey(), header.getValue());
             httpHeaders.set(header.getKey(), header.getValue());
         }
 

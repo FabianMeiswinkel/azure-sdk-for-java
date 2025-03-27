@@ -21,8 +21,6 @@ import com.azure.cosmos.implementation.directconnectivity.ReflectionUtils;
 import com.azure.cosmos.models.ModelBridgeUtils;
 import com.azure.cosmos.implementation.guava25.collect.ImmutableList;
 import com.azure.cosmos.implementation.guava25.collect.Iterables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -37,7 +35,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -64,8 +61,6 @@ public class LocationCacheTest {
     private final static URI Location4Endpoint = createUrl("https://location4.documents.azure.com");
 
     private static HashMap<String, URI> EndpointByLocation = new HashMap<>();
-
-    private final static Logger logger = LoggerFactory.getLogger(LocationCache.class);
 
     static {
         EndpointByLocation.put("location1", LocationCacheTest.Location1Endpoint);
@@ -484,9 +479,9 @@ public class LocationCacheTest {
     @Test(groups = "long")
     public void validateWriteEndpointOrderWithClientSideDisableMultipleWriteLocation()  throws Exception {
         this.initialize(false, true, false);
-        assertThat(this.cache.getWriteEndpoints().get(0)).isEqualTo(new LocationCache.ConsolidatedRegionalEndpoint(LocationCacheTest.Location1Endpoint, null));
-        assertThat(this.cache.getWriteEndpoints().get(1)).isEqualTo(new LocationCache.ConsolidatedRegionalEndpoint(LocationCacheTest.Location2Endpoint, null));
-        assertThat(this.cache.getWriteEndpoints().get(2)).isEqualTo(new LocationCache.ConsolidatedRegionalEndpoint(LocationCacheTest.Location3Endpoint, null));
+        assertThat(this.cache.getWriteEndpoints().get(0)).isEqualTo(new RegionalRoutingContext(LocationCacheTest.Location1Endpoint));
+        assertThat(this.cache.getWriteEndpoints().get(1)).isEqualTo(new RegionalRoutingContext(LocationCacheTest.Location2Endpoint));
+        assertThat(this.cache.getWriteEndpoints().get(2)).isEqualTo(new RegionalRoutingContext(LocationCacheTest.Location3Endpoint));
     }
 
     @Test(groups = "unit", dataProvider = "excludedRegionsTestConfigs")
@@ -516,11 +511,11 @@ public class LocationCacheTest {
             request.requestContext.setExcludeRegions(excludedRegionsOnRequest);
 
             if (request.isReadOnlyRequest()) {
-                List<LocationCache.ConsolidatedRegionalEndpoint> applicableReadEndpoints = cache.getApplicableReadEndpoints(request);
+                List<RegionalRoutingContext> applicableReadEndpoints = cache.getApplicableReadEndpoints(request);
                 assertThat(applicableReadEndpoints.size()).isEqualTo(expectedApplicableEndpoints.size());
                 expectedApplicableEndpoints.forEach(endpoint -> assertThat(expectedApplicableEndpoints.contains(endpoint)).isTrue());
             } else {
-                List<LocationCache.ConsolidatedRegionalEndpoint> applicableWriteEndpoints = cache.getApplicableWriteEndpoints(request);
+                List<RegionalRoutingContext> applicableWriteEndpoints = cache.getApplicableWriteEndpoints(request);
                 assertThat(applicableWriteEndpoints.size()).isEqualTo(expectedApplicableEndpoints.size());
                 expectedApplicableEndpoints.forEach(endpoint -> assertThat(expectedApplicableEndpoints.contains(endpoint)).isTrue());
             }
@@ -536,8 +531,8 @@ public class LocationCacheTest {
         boolean isDefaultEndpointAlsoRegionalEndpoint) {
 
         this.initialize(true, true, isPreferredLocationsListEmpty, isDefaultEndpointAlsoRegionalEndpoint);
-        List<LocationCache.ConsolidatedRegionalEndpoint> applicableReadEndpoints = cache.getApplicableReadEndpoints(request);
-        List<LocationCache.ConsolidatedRegionalEndpoint> applicableWriteEndpoints = cache.getApplicableWriteEndpoints(request);
+        List<RegionalRoutingContext> applicableReadEndpoints = cache.getApplicableReadEndpoints(request);
+        List<RegionalRoutingContext> applicableWriteEndpoints = cache.getApplicableWriteEndpoints(request);
 
         if (request.isReadOnlyRequest()) {
             assertThat(applicableReadEndpoints.size()).isEqualTo(expectedApplicableReadEndpoints.size());
@@ -671,8 +666,8 @@ public class LocationCacheTest {
                         endpointDiscoveryEnabled,
                         isPreferredListEmpty);
 
-                UnmodifiableList<LocationCache.ConsolidatedRegionalEndpoint> currentWriteEndpoints = this.cache.getWriteEndpoints();
-                UnmodifiableList<LocationCache.ConsolidatedRegionalEndpoint> currentReadEndpoints = this.cache.getReadEndpoints();
+                UnmodifiableList<RegionalRoutingContext> currentWriteEndpoints = this.cache.getWriteEndpoints();
+                UnmodifiableList<RegionalRoutingContext> currentReadEndpoints = this.cache.getReadEndpoints();
                 for (int i = 0; i < readLocationIndex; i++) {
                     this.cache.markEndpointUnavailableForRead(createUrl(Iterables.get(this.databaseAccount.getReadableLocations(), i).getEndpoint()));
                     this.endpointManager.markEndpointUnavailableForRead(createUrl(Iterables.get(this.databaseAccount.getReadableLocations(), i).getEndpoint()));;
@@ -902,28 +897,28 @@ public class LocationCacheTest {
 
         // If current write endpoint is unavailable, write endpoints order doesn't change
         // ALL write requests flip-flop between current write and alternate write endpoint
-        UnmodifiableList<LocationCache.ConsolidatedRegionalEndpoint> writeEndpoints = this.cache.getWriteEndpoints();
+        UnmodifiableList<RegionalRoutingContext> writeEndpoints = this.cache.getWriteEndpoints();
 
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(firstAvailableWriteEndpoint, null)).isEqualTo(writeEndpoints.get(0));
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(secondAvailableWriteEndpoint, null)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Document, true));
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(firstAvailableWriteEndpoint, null)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Document, false));
+        assertThat(new RegionalRoutingContext(firstAvailableWriteEndpoint)).isEqualTo(writeEndpoints.get(0));
+        assertThat(new RegionalRoutingContext(secondAvailableWriteEndpoint)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Document, true));
+        assertThat(new RegionalRoutingContext(firstAvailableWriteEndpoint)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Document, false));
 
         // Writes to other resource types should be directed to first/second write getEndpoint
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(firstWriteEnpoint, null)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Database, false));
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(secondWriteEnpoint, null)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Database, true));
+        assertThat(new RegionalRoutingContext(firstWriteEnpoint)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Database, false));
+        assertThat(new RegionalRoutingContext(secondWriteEnpoint)).isEqualTo(this.resolveEndpointForWriteRequest(ResourceType.Database, true));
 
         // Reads should be directed to available read endpoints regardless of resource type
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(firstAvailableReadEndpoint, null)).isEqualTo(this.resolveEndpointForReadRequest(true));
-        assertThat(new LocationCache.ConsolidatedRegionalEndpoint(firstAvailableReadEndpoint, null)).isEqualTo(this.resolveEndpointForReadRequest(false));
+        assertThat(new RegionalRoutingContext(firstAvailableReadEndpoint)).isEqualTo(this.resolveEndpointForReadRequest(true));
+        assertThat(new RegionalRoutingContext(firstAvailableReadEndpoint)).isEqualTo(this.resolveEndpointForReadRequest(false));
     }
 
-    private LocationCache.ConsolidatedRegionalEndpoint resolveEndpointForReadRequest(boolean masterResourceType) {
+    private RegionalRoutingContext resolveEndpointForReadRequest(boolean masterResourceType) {
         RxDocumentServiceRequest request = RxDocumentServiceRequest.create(mockDiagnosticsClientContext(), OperationType.Read,
                 masterResourceType ? ResourceType.Database : ResourceType.Document);
         return this.cache.resolveServiceEndpoint(request);
     }
 
-    private LocationCache.ConsolidatedRegionalEndpoint resolveEndpointForWriteRequest(ResourceType resourceType, boolean useAlternateWriteEndpoint) {
+    private RegionalRoutingContext resolveEndpointForWriteRequest(ResourceType resourceType, boolean useAlternateWriteEndpoint) {
         RxDocumentServiceRequest request = RxDocumentServiceRequest.create(mockDiagnosticsClientContext(), OperationType.Create, resourceType);
         request.requestContext.routeToLocation(useAlternateWriteEndpoint ? 1 : 0, resourceType.isCollectionChild());
         return this.cache.resolveServiceEndpoint(request);

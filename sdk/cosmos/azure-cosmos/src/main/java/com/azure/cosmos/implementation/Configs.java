@@ -46,10 +46,10 @@ public class Configs {
     private static final String UNAVAILABLE_LOCATIONS_EXPIRATION_TIME_IN_SECONDS = "COSMOS.UNAVAILABLE_LOCATIONS_EXPIRATION_TIME_IN_SECONDS";
     private static final String GLOBAL_ENDPOINT_MANAGER_INITIALIZATION_TIME_IN_SECONDS = "COSMOS.GLOBAL_ENDPOINT_MANAGER_MAX_INIT_TIME_IN_SECONDS";
     private static final String DEFAULT_THINCLIENT_ENDPOINT = "";
-    public static final String THINCLIENT_ENDPOINT = "COSMOS.THINCLIENT_ENDPOINT";
+    private static final String THINCLIENT_ENDPOINT = "COSMOS.THINCLIENT_ENDPOINT";
     private static final String THINCLIENT_ENDPOINT_VARIABLE = "COSMOS_THINCLIENT_ENDPOINT";
     private static final boolean DEFAULT_THINCLIENT_ENABLED = false;
-    public static final String THINCLIENT_ENABLED = "COSMOS.THINCLIENT_ENABLED";
+    private static final String THINCLIENT_ENABLED = "COSMOS.THINCLIENT_ENABLED";
     private static final String THINCLIENT_ENABLED_VARIABLE = "COSMOS_THINCLIENT_ENABLED";
 
     private static final String MAX_HTTP_BODY_LENGTH_IN_BYTES = "COSMOS.MAX_HTTP_BODY_LENGTH_IN_BYTES";
@@ -62,6 +62,14 @@ public class Configs {
     public static final int DEFAULT_HTTP_DEFAULT_CONNECTION_POOL_SIZE = 1000;
     public static final String HTTP_DEFAULT_CONNECTION_POOL_SIZE = "COSMOS.DEFAULT_HTTP_CONNECTION_POOL_SIZE";
     public static final String HTTP_DEFAULT_CONNECTION_POOL_SIZE_VARIABLE = "COSMOS_DEFAULT_HTTP_CONNECTION_POOL_SIZE";
+
+    public static final String HTTP_PENDING_ACQUIRE_MAX_COUNT = "COSMOS.HTTP_PENDING_ACQUIRE_MAX_COUNT";
+    public static final String HTTP_PENDING_ACQUIRE_MAX_COUNT_VARIABLE = "COSMOS_HTTP_PENDING_ACQUIRE_MAX_COUNT";
+
+    public static final String ITEM_SERIALIZATION_INCLUSION_MODE = "COSMOS.ITEM_SERIALIZATION_INCLUSION_MODE";
+    public static final String ITEM_SERIALIZATION_INCLUSION_MODE_VARIABLE = "COSMOS_ITEM_SERIALIZATION_INCLUSION_MODE";
+
+    public static final String DEFAULT_ITEM_SERIALIZATION_INCLUSION_MODE = "Always";
 
     public static final boolean DEFAULT_E2E_FOR_NON_POINT_DISABLED_DEFAULT = false;
     public static final String DEFAULT_E2E_FOR_NON_POINT_DISABLED = "COSMOS.E2E_FOR_NON_POINT_DISABLED";
@@ -304,7 +312,7 @@ public class Configs {
 
     // Flag to indicate whether enabled http2 for gateway
     private static final boolean DEFAULT_HTTP2_ENABLED = false;
-    public static final String HTTP2_ENABLED = "COSMOS.HTTP2_ENABLED";
+    private static final String HTTP2_ENABLED = "COSMOS.HTTP2_ENABLED";
     private static final String HTTP2_ENABLED_VARIABLE = "COSMOS_HTTP2_ENABLED";
 
     // Config to indicate the maximum number of live connections to keep in the pool for http2
@@ -333,7 +341,9 @@ public class Configs {
                     .forClient()
                     .sslProvider(SslContext.defaultClientProvider());
 
-            sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE); // disable cert verification
+            if (serverCertVerificationDisabled) {
+                sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE); // disable cert verification
+            }
 
             if (http2Enabled) {
                 sslContextBuilder
@@ -511,6 +521,51 @@ public class Configs {
         }
 
         return DEFAULT_HTTP_DEFAULT_CONNECTION_POOL_SIZE;
+    }
+
+    public static Integer getPendingAcquireMaxCount() {
+        String valueFromSystemProperty = System.getProperty(HTTP_PENDING_ACQUIRE_MAX_COUNT);
+        if (valueFromSystemProperty != null && !valueFromSystemProperty.isEmpty()) {
+            return Integer.parseInt(valueFromSystemProperty);
+        }
+
+        String valueFromEnvVariable = System.getenv(HTTP_PENDING_ACQUIRE_MAX_COUNT_VARIABLE);
+        if (valueFromEnvVariable != null && !valueFromEnvVariable.isEmpty()) {
+            return Integer.parseInt(valueFromEnvVariable);
+        }
+
+        return null;
+    }
+
+    private static String validateSerializationInclusionMode(String serializationInclusionMode) {
+        if (!Strings.isNullOrEmpty(serializationInclusionMode)) {
+            if ("Always".equalsIgnoreCase(serializationInclusionMode)
+                || "NonNull".equalsIgnoreCase(serializationInclusionMode)
+                || "NonEmpty".equalsIgnoreCase(serializationInclusionMode)
+                || "NonDefault".equalsIgnoreCase(serializationInclusionMode)) {
+
+                return serializationInclusionMode;
+            }
+        }
+
+        throw new IllegalArgumentException(
+            "Invalid serialization inclusion mode '"
+                + serializationInclusionMode != null ? serializationInclusionMode : "null"
+                + "'.");
+    }
+
+    public static String getItemSerializationInclusionMode() {
+        String valueFromSystemProperty = System.getProperty(ITEM_SERIALIZATION_INCLUSION_MODE);
+        if (valueFromSystemProperty != null && !valueFromSystemProperty.isEmpty()) {
+            return validateSerializationInclusionMode(valueFromSystemProperty);
+        }
+
+        String valueFromEnvVariable = System.getenv(ITEM_SERIALIZATION_INCLUSION_MODE_VARIABLE);
+        if (valueFromEnvVariable != null && !valueFromEnvVariable.isEmpty()) {
+            return validateSerializationInclusionMode(valueFromEnvVariable);
+        }
+
+        return DEFAULT_ITEM_SERIALIZATION_INCLUSION_MODE;
     }
 
     public static boolean isDefaultE2ETimeoutDisabledForNonPointOperations() {

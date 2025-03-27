@@ -9,9 +9,7 @@ import io.netty.util.ReferenceCounted;
 
 import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.azure.cosmos.implementation.directconnectivity.rntbd.RntbdConstants.RntbdHeader;
 import static com.azure.cosmos.implementation.guava25.base.Preconditions.checkNotNull;
@@ -30,7 +28,7 @@ public abstract class RntbdTokenStream<T extends Enum<T> & RntbdHeader> implemen
         checkNotNull(ids, "expected non-null ids");
         checkNotNull(in, "expected non-null in");
 
-        this.tokens = new EnumMap<>(classType);
+        this.tokens = new EnumMap<T, RntbdToken>(classType);
         headers.stream().forEach(h -> tokens.put(h, RntbdToken.create(h)));
         this.headers = ids;
         this.in = in;
@@ -59,12 +57,11 @@ public abstract class RntbdTokenStream<T extends Enum<T> & RntbdHeader> implemen
         int count = 0;
 
         for (final RntbdToken token : this.tokens.values()) {
-            if (isThinClientRequest
-                && RntbdConstants.RntbdRequestHeader.thinClientProxyExcludedSet.contains(token.getId())) {
-                continue;
-            }
-
             if (token.isPresent()) {
+                if (isThinClientRequest
+                    && RntbdConstants.RntbdRequestHeader.thinClientProxyExcludedSet.contains(token.getId())) {
+                    continue;
+                }
                 ++count;
             }
         }
@@ -81,7 +78,6 @@ public abstract class RntbdTokenStream<T extends Enum<T> & RntbdHeader> implemen
                 && RntbdConstants.RntbdRequestHeader.thinClientProxyExcludedSet.contains(token.getId())) {
                 continue;
             }
-
             total += token.computeLength();
         }
 
@@ -120,18 +116,18 @@ public abstract class RntbdTokenStream<T extends Enum<T> & RntbdHeader> implemen
         if (isThinClientRequest) {
             for (RntbdConstants.RntbdRequestHeader header : RntbdConstants.RntbdRequestHeader.thinClientHeadersInOrderList) {
                 RntbdToken token = this.tokens.get(header);
-                if (token != null) {
+                if (token != null && token.isPresent()) {
                     token.encode(out);
                 }
             }
         }
 
         for (final RntbdToken token : this.tokens.values()) {
-            if (isThinClientRequest
-                && RntbdConstants.RntbdRequestHeader.thinClientProxyOrderedOrExcludedSet.contains(token.getId())) {
+            if (!token.isPresent()
+                || (isThinClientRequest && RntbdConstants.RntbdRequestHeader.thinClientProxyOrderedOrExcludedSet.contains(token.getId()))) {
+
                 continue;
             }
-
             token.encode(out);
         }
     }
