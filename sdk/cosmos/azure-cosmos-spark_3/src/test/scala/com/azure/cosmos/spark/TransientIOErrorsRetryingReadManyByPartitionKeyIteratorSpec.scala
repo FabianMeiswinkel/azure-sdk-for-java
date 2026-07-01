@@ -106,6 +106,44 @@ class TransientIOErrorsRetryingReadManyByPartitionKeyIteratorSpec extends UnitSp
     assertNoDuplicates(items)
   }
 
+  "ReadManyByPartitionKey iterator" should "not consume items when hasNext is called repeatedly" in {
+
+    val pageCount = 30
+    val iterator = new TransientIOErrorsRetryingReadManyByPartitionKeyIterator[SparkRowItem](
+      continuationToken => generateMockedCosmosPagedFlux(
+        continuationToken, pageCount, 0.0, new AtomicLong(0), injectEmptyPages = false),
+      pageSize,
+      1,
+      None,
+      classOf[SparkRowItem]
+    )
+
+    val items = drainAllWithRepeatedHasNext(iterator)
+    items.size shouldEqual (pageCount * pageSize)
+    assertNoDuplicates(items)
+    items.map(_.row.getString(0)) shouldEqual expectedIds("Batch", 1 to pageCount)
+  }
+
+  "ReadManyByPartitionKey iterator" should "not consume items when hasNext is called repeatedly across empty pages" in {
+
+    val pageCount = 30
+    val iterator = new TransientIOErrorsRetryingReadManyByPartitionKeyIterator[SparkRowItem](
+      continuationToken => generateMockedCosmosPagedFlux(
+        continuationToken, pageCount, 0.0, new AtomicLong(0), injectEmptyPages = true),
+      pageSize,
+      1,
+      None,
+      classOf[SparkRowItem]
+    )
+
+    val nonEmptyPages = (1 to pageCount).filterNot(pageNumber => pageNumber > 1 && pageNumber <= 20 && pageNumber % 2 == 0)
+
+    val items = drainAllWithRepeatedHasNext(iterator)
+    items.size shouldEqual (nonEmptyPages.size * pageSize)
+    assertNoDuplicates(items)
+    items.map(_.row.getString(0)) shouldEqual expectedIds("Batch", nonEmptyPages)
+  }
+
   "Continuation token" should "be passed to factory on retry" in {
 
     val pageCount = 10
@@ -219,9 +257,33 @@ class TransientIOErrorsRetryingReadManyByPartitionKeyIteratorSpec extends UnitSp
     buffer.toList
   }
 
+  private def drainAllWithRepeatedHasNext(
+    iterator: TransientIOErrorsRetryingReadManyByPartitionKeyIterator[SparkRowItem]
+  ): List[SparkRowItem] = {
+    val buffer = scala.collection.mutable.ListBuffer[SparkRowItem]()
+    while (iterator.hasNext) {
+      iterator.hasNext shouldEqual true
+      iterator.hasNext shouldEqual true
+      iterator.hasNext shouldEqual true
+      buffer += iterator.next()
+    }
+
+    iterator.hasNext shouldEqual false
+    iterator.hasNext shouldEqual false
+
+    buffer.toList
+  }
+
   private def assertNoDuplicates(items: List[SparkRowItem]): Unit = {
     val ids = items.map(item => item.row.getString(0)) // "id" field
     ids.size shouldEqual ids.distinct.size
+  }
+
+  private def expectedIds(prefix: String, pageSequenceNumbers: Seq[Int]): List[String] = {
+    pageSequenceNumbers.flatMap(pageSequenceNumber => Seq(
+      f"""{"id":"$prefix%s_Page$pageSequenceNumber%05d_00001"}""",
+      f"""{"id":"$prefix%s_Page$pageSequenceNumber%05d_00002"}"""
+    )).toList
   }
 
   @throws[JsonProcessingException]
